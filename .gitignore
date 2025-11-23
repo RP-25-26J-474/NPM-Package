@@ -1,0 +1,64 @@
+# Node dependencies
+node_modules/
+
+# Build output
+dist/
+*.tgz
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Coverage & testing
+coverage/
+.vscode-test/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc caches
+.cache/
+.temp/
+tmp/
+
+# Rollup cache (if any)
+.rpt2_cache/
+
+# Jest / Vitest (future)
+jest.config.js
+vitest.config.ts
+
+# Optional lockfiles (if you don't commit them)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Storybook / docs (future)
+storybook-static/
+.docs/
+
+# Type declarations generated
+dist/**/*.d.ts
+
+# ESLint / Prettier cache
+.eslintcache
+
+# Output maps
+*.map

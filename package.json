@@ -1,0 +1,37 @@
+{
+  "name": "aura-adaptor",
+  "version": "1.0.0",
+  "description": "React library for ML-driven adaptive UI components based on JSON rules",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^26.0.3",
+    "@rollup/plugin-node-resolve": "^15.3.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "rollup": "^4.52.4",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "typescript": "^5.9.3"
+  },
+  "type": "module",
+  "keywords": [
+    "react",
+    "ui-adaptation",
+    "accessibility",
+    "ml-personalization"
+  ],
+  "author": "Team_Aura",
+  "license": "MIT"
+}
