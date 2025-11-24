@@ -1,5 +1,5 @@
 {
-  "name": "aura-adaptor",
+  "name": "@aura/aura-adaptor",
   "version": "1.0.0",
   "description": "React library for ML-driven adaptive UI components based on JSON rules",
   "main": "dist/index.js",
