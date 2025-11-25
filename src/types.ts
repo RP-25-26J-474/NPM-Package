@@ -1,168 +1,123 @@
-export interface MlEngineRules {
-    theme: {
-      primaryColor: string;
-      secondaryColor: string;
-      backgroundColor: string;
-      textColor: string;
-      accentColor: string;
-      borderColor: string;
-      hoverColor: string;
-      activeColor: string;
-      disabledColor: string;
-      errorColor: string;
-      successColor: string;
-      warningColor: string;
-      infoColor: string;
-      gradientStart: string;
-      gradientEnd: string;
-      shadowColor: string;
-      opacity: number;
-    };
-    typography: {
-      fontFamily: string;
-      fontSizeBase: string;
-      h1Size: string;
-      h2Size: string;
-      h3Size: string;
-      h4Size: string;
-      h5Size: string;
-      h6Size: string;
-      paragraphSize: string;
-      captionSize: string;
-      lineHeight: number;
-      letterSpacing: string;
-      wordSpacing: string;
-      textAlign: string;
-      textTransform: string;
-      fontWeight: number;
-      fontStyle: string;
-      textDecoration: string;
-    };
-    buttons: {
-      minWidth: string;
-      minHeight: string;
-      padding: string;
-      borderRadius: string;
-      fontSize: string;
-      hoverScale: number;
-      clickTargetSize: 'small' | 'medium' | 'large';
-      animationDuration: string;
-      disabledOpacity: number;
-      cursor: string;
-    };
-    texts: {
-      highlightColor: string;
-      selectionColor: string;
-      readabilityScore: number;
-      hyphenation: boolean;
-      kerning: string;
-    };
-    cards: {
-      width: string;
-      height: string;
-      borderRadius: string;
-      elevation: string;
-      padding: string;
-      margin: string;
-      backgroundOpacity: number;
-    };
-    lists: {
-      itemSpacing: string;
-      bulletSize: string;
-      indentation: string;
-      listStyle: string;
-    };
-    grids: {
-      columns: number;
-      gap: string;
-      rowHeight: string;
-      alignItems: string;
-      justifyItems: string;
-    };
-    layouts: {
-      maxWidth: string;
-      minHeight: string;
-      padding: string;
-      margin: string;
-      flexDirection: string;
-      justifyContent: string;
-      alignItems: string;
-      position: string;
-      zIndex: number;
-    };
-    animations: {
-      enabled: boolean;
-      duration: string;
-      delay: string;
-      easing: string;
-      fadeIn: boolean;
-      slideDistance: string;
-      rotation: string;
-      scale: number;
-    };
-    accessibility: {
-      highContrast: boolean;
-      screenReaderSupport: boolean;
-      tabIndex: number;
-      focusOutline: string;
-      skipToContent: boolean;
-      motionReduction: boolean;
-    };
-    forms: {
-      inputWidth: string;
-      inputHeight: string;
-      labelSize: string;
-      placeholderColor: string;
-      errorMessageSize: string;
-      submitButtonWidth: string;
-    };
-    images: {
-      maxWidth: string;
-      maxHeight: string;
-      borderRadius: string;
-      opacity: number;
-      filter: string;
-    };
-    navigation: {
-      navHeight: string;
-      linkSpacing: string;
-      activeLinkColor: string;
-      hoverLinkColor: string;
-    };
-    modals: {
-      width: string;
-      height: string;
-      overlayOpacity: number;
-      closeButtonSize: string;
-    };
-    tables: {
-      rowHeight: string;
-      columnGap: string;
-      headerBackground: string;
-      borderWidth: string;
-    };
-    tooltips: {
-      fontSize: string;
-      backgroundColor: string;
-      textColor: string;
-      arrowSize: string;
-    };
-    custom: {
-      customAttribute1: string;
-      customAttribute2: number;
-      customAttribute3: boolean;
-    };
-  }
-  
-  export interface AdaptiveComponentProps {
-    children?: React.ReactNode;
-    className?: string;
-    style?: React.CSSProperties;
-  }
-  
-  export interface UserPersonalizationContext {
-    userId: string | null;
-    rules: MlEngineRules | null;
-    isExtensionInstalled: boolean;
-    loadPersonalization: (userId: string) => Promise<void>;  // Simulated fetch
-  }
+// src/types.ts
+import type { CSSProperties, ReactNode } from "react";
+import React from "react";
+
+// ---- ML backend JSON types ----
+
+export type AuraFontSize = "small" | "medium" | "large" | "x-large";
+export type AuraElementSpacing = "compact" | "normal" | "wide";
+export type AuraContrastMode = "normal" | "high";
+export type AuraThemeMode = "light" | "dark";
+
+export interface AuraProfile {
+  font_size: AuraFontSize;
+  line_height: number;
+  contrast_mode: AuraContrastMode;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  theme: AuraThemeMode;
+  reduced_motion: boolean;
+  element_spacing: AuraElementSpacing;
+  target_size: number;
+  tooltip_assist: boolean;
+  layout_simplification: boolean;
+}
+
+export interface AuraMlMetadata {
+  origin: "category" | "user";
+  created_at: string;
+  confidence_overall: number;
+}
+
+export interface AuraMlResponse {
+  user_id: string;
+  session_id: string;
+  metadata: AuraMlMetadata;
+  profile: AuraProfile;
+  node_outputs: Record<string, unknown>;
+}
+
+// ---- Derived tokens for UI components ----
+
+export interface AuraColorTokens {
+  background: string;
+  surface: string;
+  text: string;
+  primary: string;
+  secondary: string;
+  accent: string;
+  border: string;
+  onPrimary: string;
+}
+
+export interface AuraTypographyTokens {
+  baseSize: string;   // e.g. "16px"
+  lineHeight: number; // e.g. 1.6
+  h1: string;
+  h2: string;
+  h3: string;
+  body: string;
+  caption: string;
+}
+
+export interface AuraSpacingTokens {
+  base: number;   // base spacing in px
+  gap: number;    // standard gap between elements
+  pagePadding: number;
+}
+
+export interface AuraControlTokens {
+  minTargetSize: number; // px
+}
+
+export interface AuraFlagTokens {
+  highContrast: boolean;
+  reducedMotion: boolean;
+  tooltipAssist: boolean;
+  layoutSimplification: boolean;
+  theme: AuraThemeMode;
+}
+
+export interface AuraTokens {
+  colors: AuraColorTokens;
+  typography: AuraTypographyTokens;
+  spacing: AuraSpacingTokens;
+  controls: AuraControlTokens;
+  flags: AuraFlagTokens;
+}
+
+// ---- Context & component props ----
+
+export type AuraSource = "category" | "user" | "fallback";
+
+export interface AdaptiveContextValue {
+  userId?: string;
+  source: AuraSource;
+  profile: AuraProfile | null;
+  tokens: AuraTokens;
+  loading: boolean;
+  error?: string;
+  isExtensionInstalled: boolean;
+  reload: () => Promise<void>;
+}
+
+export interface AdaptiveProviderProps {
+  children: ReactNode;
+  /**
+   * Optional user id. In real integration this would come from
+   * the extension or your auth system.
+   */
+  userId?: string;
+  /**
+   * For development: pretend the extension is installed and
+   * automatically load personalization on mount.
+   */
+  simulateExtensionInstalled?: boolean;
+}
+
+export interface AdaptiveComponentProps {
+  className?: string;
+  style?: CSSProperties;
+  children?: React.ReactNode;
+}

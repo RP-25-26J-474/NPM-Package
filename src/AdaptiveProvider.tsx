@@ -1,77 +1,119 @@
-import React, { createContext, useContext, ReactNode, FC, useState, useEffect } from 'react';
-import type { MlEngineRules } from './types';
-import { hardcodedMlRules, getAdaptiveStyles, fetchPersonalizationRules } from './utils';
+// src/AdaptiveProvider.tsx
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 
-interface AdaptiveContextType {
-  rules: MlEngineRules;
-  styles: ReturnType<typeof getAdaptiveStyles>;
-  isExtensionInstalled: boolean;
-  userId: string | null;
-  loadPersonalization: (userId: string) => Promise<void>;
-}
+import type {
+  AdaptiveContextValue,
+  AdaptiveProviderProps,
+  AuraProfile,
+  AuraTokens,
+  AuraSource,
+} from "./types";
 
-const defaultValue: AdaptiveContextType = {
-  rules: hardcodedMlRules,
-  styles: getAdaptiveStyles(hardcodedMlRules),
-  isExtensionInstalled: false,
-  userId: null,
-  loadPersonalization: async () => {}
-};
+import {
+  CATEGORY_PROFILE_MOCK,
+  deriveTokensFromProfile,
+  mockFetchAuraProfile,
+} from "./utils";
 
-const AdaptiveContext = createContext<AdaptiveContextType>(defaultValue);
+// --- INITIAL DEFAULT STATES ---
 
-interface AdaptiveProviderProps {
-  children: ReactNode;
-  rules?: MlEngineRules; // Optional initial rules
-  simulateExtensionCheck?: boolean; // Prop to toggle simulation
-}
+const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
+const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
 
-export const AdaptiveProvider: FC<AdaptiveProviderProps> = ({ 
-  children, 
-  rules = hardcodedMlRules,
-  simulateExtensionCheck = true
-}) => {
-  const [internalRules, setInternalRules] = useState(rules);
-  const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const styles = getAdaptiveStyles(internalRules);
+// We keep the runtime value strongly typed in the hook,
+// but relax the context type itself to avoid Provider JSX type issues
+const AdaptiveContext = createContext<AdaptiveContextValue | null>(null);
 
-  // Simulated extension check and user identification
+// --- PROVIDER COMPONENT ---
+
+export function AdaptiveProvider({
+  children,
+  userId: initialUserId,
+  simulateExtensionInstalled = true,
+}: AdaptiveProviderProps) {
+  const [userId, setUserId] = useState<string | undefined>(initialUserId);
+  const [profile, setProfile] = useState<AuraProfile | null>(initialProfile);
+  const [tokens, setTokens] = useState<AuraTokens>(initialTokens);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | undefined>();
+  const [source, setSource] = useState<AuraSource>("category");
+  const [isExtensionInstalled, setIsExtensionInstalled] =
+    useState<boolean>(false);
+
+  const loadProfile = useCallback(
+    async (uid?: string) => {
+      const effectiveUserId = uid ?? initialUserId ?? "guest";
+
+      try {
+        setLoading(true);
+        setError(undefined);
+
+        const response = await mockFetchAuraProfile(effectiveUserId);
+
+        setUserId(response.user_id);
+        setSource(response.metadata.origin);
+        setProfile(response.profile);
+        setTokens(deriveTokensFromProfile(response.profile));
+      } catch (err) {
+        console.error("[AURA] Failed to load personalization", err);
+        setError("Failed to load personalization");
+
+        // Fallback to initial category profile
+        setProfile(initialProfile);
+        setTokens(initialTokens);
+        setSource("fallback");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [initialUserId]
+  );
+
+  // Simulated extension initialization
   useEffect(() => {
-    if (simulateExtensionCheck) {
-      // Mock: Assume extension is installed for demo
+    if (simulateExtensionInstalled) {
       setIsExtensionInstalled(true);
-      setUserId('user123');  // Mock user ID
-      loadPersonalization('user123');
+      const mockUserId = initialUserId ?? "u_001";
+      loadProfile(mockUserId);
+    } else {
+      setIsExtensionInstalled(false);
+      setLoading(false);
     }
-  }, [simulateExtensionCheck]);
+  }, [simulateExtensionInstalled, initialUserId, loadProfile]);
 
-  const loadPersonalization = async (id: string) => {
-    try {
-      const fetchedRules = await fetchPersonalizationRules(id);
-      setInternalRules(fetchedRules);
-    } catch (error) {
-      console.error('Failed to load personalization:', error);
-      setInternalRules(hardcodedMlRules);  // Fallback
-    }
-  };
-
-  const value = {
-    rules: internalRules,
-    styles,
-    isExtensionInstalled,
+  const contextValue: AdaptiveContextValue = {
     userId,
-    loadPersonalization
+    source,
+    profile,
+    tokens,
+    loading,
+    error,
+    isExtensionInstalled,
+    reload: () => loadProfile(userId),
   };
 
+  // 🔑 Use createElement instead of JSX for Provider to avoid JSX typing issue
   return React.createElement(
     AdaptiveContext.Provider,
-    { value },
+    { value: contextValue },
     children
-  ) as React.ReactElement;
-};
+  );
+}
 
-export const useAdaptive = () => {
-  const context = useContext(AdaptiveContext);
-  return context;
-};
+// --- HOOK ---
+
+export function useAdaptive(): AdaptiveContextValue {
+  const ctx = useContext(AdaptiveContext);
+
+  if (!ctx) {
+    throw new Error("useAdaptive must be used inside <AdaptiveProvider>");
+  }
+
+  return ctx;
+}
