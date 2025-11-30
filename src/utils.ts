@@ -11,7 +11,7 @@ import type {
 // ---- Hardcoded ML backend JSON (category-wise & user-wise) ----
 
 export const CATEGORY_PROFILE_MOCK: AuraMlResponse = {
-  user_id: "u_001",
+  user_id: "guest",
   session_id: "s_00001",
   metadata: {
     origin: "category",
@@ -19,14 +19,14 @@ export const CATEGORY_PROFILE_MOCK: AuraMlResponse = {
     confidence_overall: 0.65,
   },
   profile: {
-    font_size: "large",
-    line_height: 1.5,
-    contrast_mode: "high",
-    primary_color: "#1a73e8",
-    secondary_color: "#1a73e8",
-    accent_color: "#e37400",
+    font_size: "medium",
+    line_height: 1.4,
+    contrast_mode: "normal",
+    primary_color: "#2563eb",   // blue
+    secondary_color: "#93c5fd",
+    accent_color: "#f97316",
     theme: "light",
-    reduced_motion: true,
+    reduced_motion: false,
     element_spacing: "normal",
     target_size: 24,
     tooltip_assist: false,
@@ -47,7 +47,7 @@ export const USER_PROFILE_MOCK: AuraMlResponse = {
     font_size: "x-large",
     line_height: 1.6,
     contrast_mode: "high",
-    primary_color: "#1a73e8",
+    primary_color: "#1a7318",
     secondary_color: "#1a73e8",
     accent_color: "#e37400",
     theme: "dark",
@@ -72,6 +72,32 @@ export const USER_PROFILE_MOCK: AuraMlResponse = {
     },
   },
 };
+
+export const USER_PROFILE_MOCK_2: AuraMlResponse = {
+  user_id: "u_002",
+  session_id: "s_00034",
+  metadata: {
+    origin: "user",
+    created_at: "2025-10-07T09:15:00Z",
+    confidence_overall: 0.9,
+  },
+  profile: {
+    font_size: "small",         // much smaller text
+    line_height: 1.3,
+    contrast_mode: "normal",
+    primary_color: "#b91c1c",   // red primary
+    secondary_color: "#f97316", // orange secondary
+    accent_color: "#22c55e",    // green accent
+    theme: "light",
+    reduced_motion: false,
+    element_spacing: "compact",
+    target_size: 20,            // smaller targets
+    tooltip_assist: false,
+    layout_simplification: false,
+  },
+  node_outputs: {},
+};
+
 
 // ---- Profile -> Tokens mapping ----
 
@@ -189,12 +215,15 @@ export const deriveTokensFromProfile = (profile: AuraProfile): AuraTokens => {
 export const mockFetchAuraProfile = async (
   userId: string
 ): Promise<AuraMlResponse> => {
-  // Simulate network latency
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  await new Promise((resolve) => setTimeout(resolve, 300));
 
   if (userId === "u_001") {
     return USER_PROFILE_MOCK;
   }
-
+  if (userId === "u_002") {
+    return USER_PROFILE_MOCK_2;
+  }
   return CATEGORY_PROFILE_MOCK;
 };
+
+
