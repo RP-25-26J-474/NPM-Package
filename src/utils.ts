@@ -55,7 +55,7 @@ export const USER_PROFILE_MOCK: AuraMlResponse = {
     element_spacing: "wide",
     target_size: 28,
     tooltip_assist: true,
-    layout_simplification: false,
+    layout_simplification: true,
   },
   node_outputs: {
     font_size: {
@@ -82,7 +82,7 @@ export const USER_PROFILE_MOCK_2: AuraMlResponse = {
     confidence_overall: 0.9,
   },
   profile: {
-    font_size: "small",         // much smaller text
+    font_size: "small",       
     line_height: 1.3,
     contrast_mode: "normal",
     primary_color: "#b91c1c",   // red primary
