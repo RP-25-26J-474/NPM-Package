@@ -98,7 +98,6 @@ export function AdaptiveProvider({
     reload: () => loadProfile(userId),
   };
 
-  // 🔑 Use createElement instead of JSX for Provider to avoid JSX typing issue
   return React.createElement(
     AdaptiveContext.Provider,
     { value: contextValue },
