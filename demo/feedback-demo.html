@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Popup Demo - Aura Adaptive UI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 3rem;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 2rem;
+    }
+
+    p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .features {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid #eee;
+    }
+
+    .features h2 {
+      color: #333;
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+    }
+
+    .features ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .features li {
+      color: #666;
+      padding: 0.5rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+    }
+
+    .features li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    .note {
+      background: #f8f9fa;
+      border-left: 4px solid #667eea;
+      padding: 1rem;
+      margin-top: 2rem;
+      border-radius: 4px;
+    }
+
+    .note strong {
+      color: #667eea;
+    }
+
+    /* Demo Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .stat-card {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 Adaptive UI Feedback System</h1>
+    
+    <p>
+      This demo showcases the <strong>FeedbackPopup</strong> component from the Aura Adaptive UI library.
+      The component automatically adapts to user preferences and collects valuable feedback for the
+      Reinforcement Learning optimization engine.
+    </p>
+
+    <button class="button" onclick="showFeedbackDemo()">
+      Launch Feedback Popup
+    </button>
+
+    <div class="features">
+      <h2>Component Features</h2>
+      <ul>
+        <li>Fully adaptive to user preferences (theme, font size, contrast)</li>
+        <li>Three feedback types: Positive, Neutral, Negative</li>
+        <li>5-star rating system</li>
+        <li>Optional text comments</li>
+        <li>Backend API integration</li>
+        <li>Accessibility optimized (keyboard nav, ARIA labels)</li>
+        <li>Reduced motion support</li>
+        <li>High contrast mode</li>
+      </ul>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="sessionTime">0:00</div>
+        <div class="stat-label">Session Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="interactions">0</div>
+        <div class="stat-label">Interactions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="feedbackCount">0</div>
+        <div class="stat-label">Feedback Given</div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Note:</strong> This is a standalone demo. For React integration, 
+      see <code>examples/FeedbackPopupExample.tsx</code> in the NPM package.
+    </div>
+  </div>
+
+  <script>
+    // Track session metrics
+    let sessionStart = Date.now();
+    let interactionCount = 0;
+    let feedbackCount = 0;
+
+    // Update session timer
+    setInterval(() => {
+      const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      document.getElementById('sessionTime').textContent = 
+        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+
+    // Track interactions
+    document.addEventListener('click', () => {
+      interactionCount++;
+      document.getElementById('interactions').textContent = interactionCount;
+    });
+
+    function showFeedbackDemo() {
+      alert('🎯 Feedback Popup Component\n\n' +
+        'In a React application, this would open the FeedbackPopup component.\n\n' +
+        'The component would:\n' +
+        '• Adapt to user UI preferences\n' +
+        '• Collect feedback type (positive/neutral/negative)\n' +
+        '• Allow star ratings (1-5)\n' +
+        '• Accept optional comments\n' +
+        '• Submit to backend API automatically\n' +
+        '• Track implicit signals (time, interactions, etc.)\n\n' +
+        'This data feeds into the Q-Learning engine to continuously\n' +
+        'optimize the UI for each individual user.\n\n' +
+        'See FEEDBACK_COMPONENT.md for full documentation.');
+      
+      feedbackCount++;
+      document.getElementById('feedbackCount').textContent = feedbackCount;
+
+      // Simulate feedback submission
+      const feedback = {
+        userId: 'demo_user',
+        feedbackType: ['positive', 'neutral', 'negative'][Math.floor(Math.random() * 3)],
+        rating: Math.floor(Math.random() * 5) + 1,
+        timestamp: new Date().toISOString(),
+        implicitSignals: {
+          timeSpent: Date.now() - sessionStart,
+          interactionCount: interactionCount,
+        }
+      };
+
+      console.log('Demo Feedback Submitted:', feedback);
+    }
+
+    // Auto-prompt for feedback after 10 seconds (demo)
+    setTimeout(() => {
+      if (confirm('Would you like to provide feedback about your experience?')) {
+        showFeedbackDemo();
+      }
+    }, 10000);
+
+    console.log('%c🎨 Aura Adaptive UI - Feedback Component Demo', 
+      'color: #667eea; font-size: 16px; font-weight: bold;');
+    console.log('Check out the FeedbackPopup component in the NPM package!');
+    console.log('📚 Documentation: FEEDBACK_COMPONENT.md');
+    console.log('💻 Examples: examples/FeedbackPopupExample.tsx');
+  </script>
+</body>
+</html>

@@ -13,6 +13,7 @@ import type {
   AuraProfile,
   AuraTokens,
   AuraSource,
+  FeedbackData,
 } from "./types";
 
 import {
@@ -36,6 +37,7 @@ export function AdaptiveProvider({
   children,
   userId: initialUserId,
   simulateExtensionInstalled = true,
+  apiUrl,
 }: AdaptiveProviderProps) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
   const [profile, setProfile] = useState<AuraProfile | null>(initialProfile);
@@ -75,6 +77,34 @@ export function AdaptiveProvider({
     [initialUserId]
   );
 
+  // Submit feedback to backend
+  const submitFeedback = useCallback(
+    async (feedbackData: FeedbackData) => {
+      if (!apiUrl || !userId) {
+        console.warn("[AURA] No API URL or userId provided for feedback submission");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${apiUrl}/users/${userId}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(feedbackData),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Feedback submission failed: ${response.statusText}`);
+        }
+
+        console.log("[AURA] Feedback submitted successfully");
+      } catch (err) {
+        console.error("[AURA] Failed to submit feedback:", err);
+        throw err;
+      }
+    },
+    [apiUrl, userId]
+  );
+
   // Simulated extension initialization
   useEffect(() => {
     if (simulateExtensionInstalled) {
@@ -96,6 +126,7 @@ export function AdaptiveProvider({
     error,
     isExtensionInstalled,
     reload: () => loadProfile(userId),
+    submitFeedback,
   };
 
   return React.createElement(

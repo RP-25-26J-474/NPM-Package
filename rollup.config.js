@@ -10,7 +10,8 @@ export default {
     {
       file: 'dist/index.js',
       format: 'cjs',
-      sourcemap: true
+      sourcemap: true,
+      exports: 'named'
     },
     {
       file: 'dist/index.esm.js',
@@ -18,6 +19,7 @@ export default {
       sourcemap: true
     }
   ],
+  external: ['react', 'react-dom', 'react/jsx-runtime'],
   plugins: [
     peerDepsExternal(),
     resolve(),

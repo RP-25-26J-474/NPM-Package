@@ -100,6 +100,7 @@ export interface AdaptiveContextValue {
   error?: string;
   isExtensionInstalled: boolean;
   reload: () => Promise<void>;
+  submitFeedback?: (feedbackData: FeedbackData) => Promise<void>;
 }
 
 export interface AdaptiveProviderProps {
@@ -114,10 +115,33 @@ export interface AdaptiveProviderProps {
    * automatically load personalization on mount.
    */
   simulateExtensionInstalled?: boolean;
+  /**
+   * API URL for backend communication (feedback submission, etc.)
+   */
+  apiUrl?: string;
 }
 
 export interface AdaptiveComponentProps {
   className?: string;
   style?: CSSProperties;
   children?: React.ReactNode;
+}
+
+// ---- Feedback types ----
+
+export type FeedbackType = "positive" | "neutral" | "negative";
+
+export interface FeedbackData {
+  userId: string;
+  feedbackType: FeedbackType;
+  rating?: number; // 1-5 stars
+  comment?: string;
+  timestamp: string;
+  currentSettings?: AuraProfile;
+  sessionId?: string;
+  implicitSignals?: {
+    timeSpent?: number;
+    interactionCount?: number;
+    scrollDepth?: number;
+  };
 }

@@ -1,7 +1,7 @@
 {
   "name": "@aura/aura-adaptor",
-  "version": "1.0.0",
-  "description": "React library for ML-driven adaptive UI components based on JSON rules",
+  "version": "1.1.0",
+  "description": "React library for ML-driven adaptive UI components with built-in feedback collection for continuous optimization",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -17,6 +17,8 @@
     "@rollup/plugin-node-resolve": "^15.3.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "rollup": "^4.52.4",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-typescript2": "^0.36.0",
