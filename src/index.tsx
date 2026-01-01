@@ -4,6 +4,7 @@ export { AdaptiveButton } from "./components/AdaptiveButton";
 export { AdaptiveText } from "./components/AdaptiveText";
 export { AdaptiveTable } from "./components/AdaptiveTable";
 export { AdaptiveCard } from "./components/AdaptiveCard";
+export { AdaptiveNavbar } from "./components/AdaptiveNavbar";
 
 export type {
   AuraProfile,
