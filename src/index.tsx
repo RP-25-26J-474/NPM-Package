@@ -3,6 +3,7 @@ export { AdaptiveProvider, useAdaptive } from "./AdaptiveProvider";
 export { AdaptiveButton } from "./components/AdaptiveButton";
 export { AdaptiveText } from "./components/AdaptiveText";
 export { AdaptiveTable } from "./components/AdaptiveTable";
+export { AdaptiveCard } from "./components/AdaptiveCard";
 
 export type {
   AuraProfile,
