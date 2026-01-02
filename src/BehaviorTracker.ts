@@ -41,10 +41,21 @@ export interface BehaviorTrackerConfig {
   sendInterval?: number;
   debugMode?: boolean;
   clientDomain?: string; // For multi-tenant tracking
+  personalizationSessionId?: string; // Session from personalization service
 }
 
+type BehaviorTrackerResolvedConfig = {
+  userId: string;
+  uiVariant: string;
+  apiEndpoint: string;
+  sendInterval: number;
+  debugMode: boolean;
+  clientDomain: string;
+  personalizationSessionId?: string;
+};
+
 export class BehaviorTracker {
-  private config: Required<BehaviorTrackerConfig>;
+  private config: BehaviorTrackerResolvedConfig;
   private sessionId: string;
   private sessionStart: number;
   private lastInteractionTime: number;
@@ -71,6 +82,7 @@ export class BehaviorTracker {
       sendInterval: config.sendInterval || 300000, // 5 minutes
       debugMode: config.debugMode || false,
       clientDomain: config.clientDomain || (typeof window !== 'undefined' ? window.location.hostname : 'unknown'),
+      personalizationSessionId: config.personalizationSessionId,
     };
 
     this.sessionId = this.generateSessionId();
@@ -286,6 +298,7 @@ export class BehaviorTracker {
       userId: this.config.userId,
       clientDomain: this.config.clientDomain,
       uiVariant: this.config.uiVariant,
+      personalizationSessionId: this.config.personalizationSessionId,
       metrics: { ...this.metrics },
       timestamp: new Date().toISOString(),
     };

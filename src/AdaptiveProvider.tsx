@@ -10,6 +10,7 @@ import React, {
 import type {
   AdaptiveContextValue,
   AdaptiveProviderProps,
+  AdaptiveFeedbackPayload,
   AuraProfile,
   AuraTokens,
   AuraSource,
@@ -124,6 +125,7 @@ export function AdaptiveProvider({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>();
   const [source, setSource] = useState<AuraSource>("category");
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
   const [isExtensionInstalled, setIsExtensionInstalled] =
     useState<boolean>(false);
   const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
@@ -144,6 +146,7 @@ export function AdaptiveProvider({
         const response = await fetchAuraProfile(apiEndpoint, effectiveUserId);
 
         setUserId(response.user_id);
+        setSessionId(response.session_id);
         setSource(response.metadata.origin);
         setProfile(response.profile);
         setTokens(deriveTokensFromProfile(response.profile));
@@ -154,6 +157,7 @@ export function AdaptiveProvider({
         try {
           const fallback = await mockFetchAuraProfile(effectiveUserId);
           setUserId(fallback.user_id);
+          setSessionId(fallback.session_id);
           setSource(fallback.metadata.origin);
           setProfile(fallback.profile);
           setTokens(deriveTokensFromProfile(fallback.profile));
@@ -193,6 +197,7 @@ export function AdaptiveProvider({
         const mlJson = await bridge.getMlProfile(extUserId);
 
         setUserId(mlJson.user_id);
+        setSessionId(mlJson.session_id);
         setSource(mlJson.metadata.origin);
         setProfile(mlJson.profile);
         setTokens(deriveTokensFromProfile(mlJson.profile));
@@ -205,6 +210,44 @@ export function AdaptiveProvider({
       }
     },
     [loadProfile]
+  );
+
+  const submitFeedback = useCallback(
+    async (feedback: AdaptiveFeedbackPayload): Promise<{ success: boolean }> => {
+      if (!apiEndpoint) {
+        throw new Error("Missing apiEndpoint for feedback");
+      }
+      if (!userId) {
+        throw new Error("Missing userId for feedback");
+      }
+      if (!sessionId) {
+        throw new Error("Missing sessionId for feedback");
+      }
+
+      // Map feedback to answer format
+      const answer = (feedback.value ?? 0) >= 0.5 ? 'yes' : 'no';
+
+      const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/feedback/explicit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          sessionId,
+          answer,
+          comment: feedback.comment,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Feedback request failed (${response.status})`);
+      }
+
+      const result = await response.json();
+      return { success: result && result.success === true };
+    },
+    [apiEndpoint, userId, sessionId]
   );
 
   // --- Initialization ---
@@ -232,6 +275,7 @@ export function AdaptiveProvider({
       userId,
       uiVariant: source === 'user' ? 'personalized' : 'baseline',
       apiEndpoint,
+      personalizationSessionId: sessionId,
       sendInterval: 300000, // 5 minutes
       debugMode,
     });
@@ -250,16 +294,18 @@ export function AdaptiveProvider({
         (window as any).__behaviorTracker = null;
       }
     };
-  }, [enableBehaviorTracking, apiEndpoint, userId, source, loading, debugMode]);
+  }, [enableBehaviorTracking, apiEndpoint, userId, sessionId, source, loading, debugMode]);
 
   const contextValue: AdaptiveContextValue = {
     userId,
+    sessionId,
     source,
     profile,
     tokens,
     loading,
     error,
     isExtensionInstalled,
+    submitFeedback,
 
     // must return Promise<void> (your types.ts expects Promise)
     reload: async () => {

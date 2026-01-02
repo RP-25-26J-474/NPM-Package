@@ -91,8 +91,19 @@ export interface AuraTokens {
 
 export type AuraSource = "category" | "user" | "fallback";
 
+export type AdaptiveFeedbackType = "positive" | "neutral" | "negative";
+
+export interface AdaptiveFeedbackPayload {
+  type: AdaptiveFeedbackType | 'explicit';
+  value?: number;  // For explicit feedback: 1.0 (yes) or 0.0 (no)
+  rating?: number;
+  comment?: string;
+  responseTime?: number;
+}
+
 export interface AdaptiveContextValue {
   userId?: string;
+  sessionId?: string;
   source: AuraSource;
   profile: AuraProfile | null;
   tokens: AuraTokens;
@@ -100,6 +111,7 @@ export interface AdaptiveContextValue {
   error?: string;
   isExtensionInstalled: boolean;
   behaviorTracker?: any; // BehaviorTracker instance
+  submitFeedback?: (feedback: AdaptiveFeedbackPayload) => Promise<{ success: boolean }>;
   reload: () => Promise<void>;
 }
 
