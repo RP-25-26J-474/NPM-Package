@@ -22,6 +22,8 @@ import {
   mockFetchAuraProfile,
 } from "./utils";
 
+import { BehaviorTracker } from "./BehaviorTracker";
+
 // --- INITIAL DEFAULT STATES ---
 const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
 const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
@@ -111,6 +113,9 @@ export function AdaptiveProvider({
   children,
   userId: initialUserId,
   simulateExtensionInstalled = true,
+  apiEndpoint,
+  enableBehaviorTracking = true,
+  debugMode = false,
 }: AdaptiveProviderProps) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
   const [profile, setProfile] = useState<AuraProfile | null>(initialProfile);
@@ -120,6 +125,7 @@ export function AdaptiveProvider({
   const [source, setSource] = useState<AuraSource>("category");
   const [isExtensionInstalled, setIsExtensionInstalled] =
     useState<boolean>(false);
+  const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
 
   //  extension simulation 
   const loadProfile = useCallback(
@@ -197,6 +203,37 @@ export function AdaptiveProvider({
       loadProfile(mockUserId);
       return;
     }
+
+  // --- Initialize Behavior Tracker (Week 1 Implementation) ---
+  useEffect(() => {
+    if (!enableBehaviorTracking || !apiEndpoint || !userId || loading) {
+      return;
+    }
+
+    // Initialize tracker
+    const tracker = new BehaviorTracker({
+      userId,
+      uiVariant: source === 'user' ? 'personalized' : 'baseline',
+      apiEndpoint,
+      sendInterval: 300000, // 5 minutes
+      debugMode,
+    });
+
+    setBehaviorTracker(tracker);
+
+    // Store globally for AdaptiveRevert component
+    if (typeof window !== 'undefined') {
+      (window as any).__behaviorTracker = tracker;
+    }
+
+    // Cleanup on unmount
+    return () => {
+      tracker.destroy();
+      if (typeof window !== 'undefined') {
+        (window as any).__behaviorTracker = null;
+      }
+    };
+  }, [enableBehaviorTracking, apiEndpoint, userId, source, loading, debugMode]);
 
     //  FUTURE path: real extension
     loadFromExtension();

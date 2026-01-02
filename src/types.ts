@@ -99,6 +99,7 @@ export interface AdaptiveContextValue {
   loading: boolean;
   error?: string;
   isExtensionInstalled: boolean;
+  behaviorTracker?: any; // BehaviorTracker instance
   reload: () => Promise<void>;
 }
 
@@ -114,6 +115,20 @@ export interface AdaptiveProviderProps {
    * automatically load personalization on mount.
    */
   simulateExtensionInstalled?: boolean;
+  /**
+   * API endpoint for behavior tracking and personalization.
+   * Example: 'https://your-backend.com/api'
+   */
+  apiEndpoint?: string;
+  /**
+   * Enable implicit behavior tracking (Week 1 implementation).
+   * Tracks user behavior silently without prompts.
+   */
+  enableBehaviorTracking?: boolean;
+  /**
+   * Enable debug logging for behavior tracker.
+   */
+  debugMode?: boolean;
 }
 
 export interface AdaptiveComponentProps {
