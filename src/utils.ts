@@ -8,6 +8,31 @@ import type {
   AuraThemeMode,
 } from "./types";
 
+type PersonalizationSettings = {
+  variant?: string;
+  fontSize?: string;
+  lineHeight?: number | string;
+  contrast?: string;
+  spacing?: string;
+  targetSize?: number | string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  theme?: string;
+  reducedMotion?: boolean;
+  tooltipAssist?: boolean;
+  layoutSimplification?: boolean;
+};
+
+type PersonalizationResponse = {
+  success: boolean;
+  userId?: string;
+  sessionId?: string;
+  source?: string;
+  confidence?: number;
+  settings?: PersonalizationSettings;
+};
+
 // -------------------------
 // Hardcoded ML backend JSON
 // -------------------------
@@ -35,6 +60,64 @@ export const CATEGORY_PROFILE_MOCK: AuraMlResponse = {
     layout_simplification: false,
   },
   node_outputs: {},
+};
+
+const normalizeEndpoint = (endpoint: string): string => {
+  return endpoint.replace(/\/+$/, "");
+};
+
+const mapFontSize = (
+  fontSize: string | undefined,
+  fallback: AuraFontSize
+): AuraFontSize => {
+  if (!fontSize) return fallback;
+  const parsed = parseInt(fontSize, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  if (parsed <= 14) return "small";
+  if (parsed <= 16) return "medium";
+  if (parsed <= 18) return "large";
+  return "x-large";
+};
+
+const mapSpacing = (
+  spacing: string | undefined,
+  fallback: AuraElementSpacing
+): AuraElementSpacing => {
+  if (!spacing) return fallback;
+  if (spacing === "compact" || spacing === "normal" || spacing === "wide") {
+    return spacing;
+  }
+  if (spacing.includes("compact")) return "compact";
+  if (spacing.includes("wide")) return "wide";
+  return fallback;
+};
+
+const parseTargetSize = (
+  value: number | string | undefined,
+  fallback: number
+): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = parseInt(value, 10);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const parseLineHeight = (
+  value: number | string | undefined,
+  fallback: number
+): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return fallback;
 };
 
 // u_001 (dark + high contrast + simplified)
@@ -314,4 +397,83 @@ export const mockFetchAuraProfile = async (
 
   // default
   return CATEGORY_PROFILE_MOCK;
+};
+
+export const fetchAuraProfile = async (
+  apiEndpoint: string,
+  userId: string
+): Promise<AuraMlResponse> => {
+  const baseProfile = CATEGORY_PROFILE_MOCK.profile;
+  const url = `${normalizeEndpoint(apiEndpoint)}/personalization?userId=${encodeURIComponent(userId)}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Personalization request failed (${response.status})`);
+  }
+
+  const data = (await response.json()) as PersonalizationResponse;
+
+  if (!data || !data.success || !data.settings) {
+    throw new Error("Invalid personalization response");
+  }
+
+  const settings = data.settings;
+  const origin =
+    data.source === "baseline" || settings.variant === "baseline"
+      ? "category"
+      : "user";
+
+  const contrastMode =
+    settings.contrast === "high"
+      ? "high"
+      : settings.contrast === "normal"
+        ? "normal"
+        : baseProfile.contrast_mode;
+
+  const theme =
+    settings.theme === "dark" || settings.theme === "light"
+      ? settings.theme
+      : baseProfile.theme;
+
+  const profile: AuraProfile = {
+    font_size: mapFontSize(settings.fontSize, baseProfile.font_size),
+    line_height: parseLineHeight(settings.lineHeight, baseProfile.line_height),
+    contrast_mode: contrastMode,
+    primary_color: settings.primaryColor || baseProfile.primary_color,
+    secondary_color: settings.secondaryColor || baseProfile.secondary_color,
+    accent_color: settings.accentColor || baseProfile.accent_color,
+    theme,
+    reduced_motion:
+      typeof settings.reducedMotion === "boolean"
+        ? settings.reducedMotion
+        : baseProfile.reduced_motion,
+    element_spacing: mapSpacing(settings.spacing, baseProfile.element_spacing),
+    target_size: parseTargetSize(settings.targetSize, baseProfile.target_size),
+    tooltip_assist:
+      typeof settings.tooltipAssist === "boolean"
+        ? settings.tooltipAssist
+        : baseProfile.tooltip_assist,
+    layout_simplification:
+      typeof settings.layoutSimplification === "boolean"
+        ? settings.layoutSimplification
+        : baseProfile.layout_simplification,
+  };
+
+  return {
+    user_id: data.userId || userId,
+    session_id: data.sessionId || `s_${Date.now()}`,
+    metadata: {
+      origin,
+      created_at: new Date().toISOString(),
+      confidence_overall:
+        typeof data.confidence === "number" ? data.confidence : 0.7,
+    },
+    profile,
+    node_outputs: {},
+  };
 };

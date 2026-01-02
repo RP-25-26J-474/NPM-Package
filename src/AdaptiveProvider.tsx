@@ -19,6 +19,7 @@ import type {
 import {
   CATEGORY_PROFILE_MOCK,
   deriveTokensFromProfile,
+  fetchAuraProfile,
   mockFetchAuraProfile,
 } from "./utils";
 
@@ -136,7 +137,11 @@ export function AdaptiveProvider({
         setLoading(true);
         setError(undefined);
 
-        const response = await mockFetchAuraProfile(effectiveUserId);
+        if (!apiEndpoint) {
+          throw new Error("Missing apiEndpoint for personalization request");
+        }
+
+        const response = await fetchAuraProfile(apiEndpoint, effectiveUserId);
 
         setUserId(response.user_id);
         setSource(response.metadata.origin);
@@ -146,16 +151,24 @@ export function AdaptiveProvider({
         console.error("[AURA] Failed to load personalization", err);
         setError("Failed to load personalization");
 
-        // Fallback to initial category profile
-        setProfile(initialProfile);
-        setTokens(initialTokens);
-        setSource("fallback");
-        setUserId("guest");
+        try {
+          const fallback = await mockFetchAuraProfile(effectiveUserId);
+          setUserId(fallback.user_id);
+          setSource(fallback.metadata.origin);
+          setProfile(fallback.profile);
+          setTokens(deriveTokensFromProfile(fallback.profile));
+        } catch (fallbackError) {
+          // Fallback to initial category profile
+          setProfile(initialProfile);
+          setTokens(initialTokens);
+          setSource("fallback");
+          setUserId("guest");
+        }
       } finally {
         setLoading(false);
       }
     },
-    [initialUserId]
+    [initialUserId, apiEndpoint]
   );
 
   // real extension path (inactive for now unless simulateExtensionInstalled=false)
@@ -204,6 +217,10 @@ export function AdaptiveProvider({
       return;
     }
 
+    //  FUTURE path: real extension
+    loadFromExtension();
+  }, [simulateExtensionInstalled, initialUserId, loadProfile, loadFromExtension]);
+
   // --- Initialize Behavior Tracker (Week 1 Implementation) ---
   useEffect(() => {
     if (!enableBehaviorTracking || !apiEndpoint || !userId || loading) {
@@ -234,10 +251,6 @@ export function AdaptiveProvider({
       }
     };
   }, [enableBehaviorTracking, apiEndpoint, userId, source, loading, debugMode]);
-
-    //  FUTURE path: real extension
-    loadFromExtension();
-  }, [simulateExtensionInstalled, initialUserId, loadProfile, loadFromExtension]);
 
   const contextValue: AdaptiveContextValue = {
     userId,
