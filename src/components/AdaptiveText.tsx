@@ -35,7 +35,6 @@ export interface AdaptiveTextProps extends AdaptiveComponentProps {
   maxLines?: number;  // multi-line clamp (best-effort)
 }
 
-// use loose CSS type to avoid broken/partial CSSProperties typings in your env
 type AnyStyle = Record<string, any>;
 
 function weightToNumber(w: TextWeight): number {

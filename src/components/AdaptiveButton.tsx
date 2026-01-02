@@ -21,7 +21,6 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
 
   const [hovered, setHovered] = useState(false);
 
-  // Pull out just what we need, without using rest/spread
   const variant: ButtonVariant =
     props.variant === undefined ? "primary" : props.variant;
 

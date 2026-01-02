@@ -213,6 +213,7 @@ function AdaptiveCardMedia(
     alt?: string;
     placement?: MediaPlacement;
     shape?: "square" | "rounded";
+    keepInSimplify?: boolean; 
   }
 ) {
   const ctx = useCardCtx();
@@ -222,18 +223,18 @@ function AdaptiveCardMedia(
   const src = (props as any).src;
   if (!src) return null;
 
-  // Simplification: auto-hide media for cognitive load reduction
-  if (simplify) return null;
+  //  keep media visible if developer says it's required
+  const keepInSimplify = (props as any).keepInSimplify === true;
+  if (simplify && !keepInSimplify) return null;
 
   const placement = (props as any).placement || mediaPlacement;
   if (placement === "hidden") return null;
 
   const shape = (props as any).shape || "rounded";
 
-  const imgH = Math.max(120, controls.minTargetSize * 3);
-
+  const imgH = Math.max(560, controls.minTargetSize * 3);
   const imgStyle: AnyStyle = {
-    width: placement === "top" ? "100%" : Math.max(180, controls.minTargetSize * 6),
+    width: placement === "top" ? "100%" : Math.max(90, controls.minTargetSize * 6),
     height: imgH,
     objectFit: "cover",
     borderRadius: shape === "rounded" ? 14 : 0,
@@ -247,7 +248,11 @@ function AdaptiveCardMedia(
     return React.createElement(
       "div",
       { style: { marginBottom: Math.max(12, spacing.base * 2) } } as any,
-      React.createElement("img", { src: src, alt: (props as any).alt || "", style: imgStyle } as any)
+      React.createElement("img", {
+        src: src,
+        alt: (props as any).alt || "",
+        style: imgStyle,
+      } as any)
     );
   }
 
@@ -286,7 +291,6 @@ function AdaptiveCardSideLayout(
   );
 }
 
-/* ===================== Optional helper: Divider ===================== */
 /** Tiny helper if dev wants a divider in the card body that adapts. */
 function AdaptiveCardDivider(props: AdaptiveComponentProps) {
   const ctx = useCardCtx();

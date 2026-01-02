@@ -140,16 +140,18 @@ function AdaptiveNavbarBrand(props: AdaptiveComponentProps) {
 
 function AdaptiveNavbarNav(props: AdaptiveComponentProps) {
   const { tokens, simplify } = useNavbarCtx();
-  const { spacing } = tokens;
+  const { spacing, controls } = tokens;
 
-  // Simplification: hide nav by default (brand + primary action still visible)
-  if (simplify) return null;
+  // Never hide nav. In simplify mode, only adjust spacing/layout.
+  const gap = simplify ? Math.max(8, Math.round(spacing.base * 0.8)) : Math.max(10, spacing.base);
 
   const style: AnyStyle = {
     display: "flex",
     alignItems: "center",
-    gap: Math.max(10, spacing.base).toString() + "px",
+    gap: gap.toString() + "px",
     flexWrap: "wrap",
+    // In simplified mode, keep items easier to hit and avoid tight clustering
+    rowGap: simplify ? Math.max(8, Math.round(controls.minTargetSize * 0.25)) : undefined,
   };
 
   mergeStyle(style, (props as any).style);
