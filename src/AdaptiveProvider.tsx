@@ -29,6 +29,7 @@ import { BehaviorTracker } from "./BehaviorTracker";
 import { useTrialManager } from "./hooks/useTrialManager";
 import { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
 import { useSettingsSync } from "./hooks/useSettingsSync";
+import { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
 // NOTE: AdaptiveSettingsChangePrompt temporarily disabled due to TypeScript build issues
 // import { AdaptiveSettingsChangePrompt } from "./components/AdaptiveSettingsChangePrompt";
 
@@ -141,6 +142,9 @@ export function AdaptiveProvider({
   const [showSettingsPrompt, setShowSettingsPrompt] = useState(false);
   const [latestSettings, setLatestSettings] = useState<any>(null);
   const [settingsSource, setSettingsSource] = useState<'manual' | 'ml' | 'trial'>('manual');
+  const [mlConfidence, setMlConfidence] = useState<number>(0.5);
+  const [changedSettingKey, setChangedSettingKey] = useState<string>('');
+  const [settingOldValue, setSettingOldValue] = useState<any>(null);
 
   // NEW: Trial manager for trial-based mode
   const {
@@ -156,11 +160,26 @@ export function AdaptiveProvider({
     profileRef.current = profile;
   }, [profile]);
 
-  const handleSettingsUpdate = useCallback((settings: any, source: string) => {
-    console.log('[AURA] 📥 Received settings update from dashboard:', settings, 'source:', source);
+  const handleSettingsUpdate = useCallback((settings: any, source: string, mlConf?: number) => {
+    console.log('[AURA] 📥 Received settings update:', settings, 'source:', source);
     
     const currentProfile = profileRef.current;
     console.log('[AURA] 📋 Current profile:', currentProfile);
+    
+    // Detect which setting changed the most
+    let primaryChangedKey = 'theme';
+    let oldVal: any = currentProfile?.theme;
+    
+    if (settings.theme && settings.theme !== currentProfile?.theme) {
+      primaryChangedKey = 'theme';
+      oldVal = currentProfile?.theme;
+    } else if (settings.fontSize && settings.fontSize !== currentProfile?.font_size) {
+      primaryChangedKey = 'font_size';
+      oldVal = currentProfile?.font_size;
+    } else if (settings.targetSize && settings.targetSize !== currentProfile?.target_size) {
+      primaryChangedKey = 'target_size';
+      oldVal = currentProfile?.target_size;
+    }
     
     // Parse targetSize if it's a string (e.g., "28px" -> 28)
     let targetSizeValue = currentProfile?.target_size || 44;
@@ -200,12 +219,15 @@ export function AdaptiveProvider({
     console.log('[AURA] 🎯 UI should now reflect: theme=%s, fontSize=%s, colors=%s', 
       updatedProfile.theme, updatedProfile.font_size, updatedProfile.primary_color);
     
-    // Show feedback prompt
+    // Store for feedback prompt
     setLatestSettings(settings);
     setSettingsSource(source as 'manual' | 'ml' | 'trial');
-    setShowSettingsPrompt(true);
+    setMlConfidence(mlConf || 0.5);
+    setChangedSettingKey(primaryChangedKey);
+    setSettingOldValue(oldVal);
+    setShowSettingsPrompt(source === 'ml'); // Only show for ML changes
     
-    console.log('[AURA] 💬 Feedback prompt shown');
+    console.log('[AURA] 💬 Feedback prompt:', source === 'ml' ? 'shown' : 'hidden');
   }, []);
 
   useSettingsSync({
@@ -493,9 +515,22 @@ export function AdaptiveProvider({
         newValue: activeTrial.newValue,
         onFeedback: handleTrialFeedback,
         position: "bottom-right",
+      }),
+    // ML Feedback prompt (when ML engine changes settings)
+    showSettingsPrompt &&
+      settingsSource === 'ml' &&
+      apiEndpoint &&
+      React.createElement(MLFeedbackPrompt, {
+        userId: userId || 'guest',
+        settingKey: changedSettingKey,
+        oldValue: settingOldValue,
+        newValue: latestSettings?.[changedSettingKey] || latestSettings?.[changedSettingKey.replace('_', '')],
+        mlConfidence: mlConfidence,
+        source: settingsSource,
+        apiEndpoint: apiEndpoint,
+        onClose: () => setShowSettingsPrompt(false),
+        position: "bottom-right"
       })
-    // NOTE: Settings change prompt temporarily disabled due to TypeScript build issues
-    // Will be re-enabled once JSX configuration is fixed
   );
 }
 
