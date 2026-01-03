@@ -10,8 +10,10 @@ export { AdaptiveFeedback } from "./components/AdaptiveFeedback";
 export { AdaptiveRevert } from "./components/AdaptiveRevert";
 export { AdaptiveFeedbackPrompt } from "./components/AdaptiveFeedbackPrompt";
 export { AdaptiveChangeConfirmation } from "./components/AdaptiveChangeConfirmation";
+export { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
 export { BehaviorTracker } from "./BehaviorTracker";
 export { useRealtimeUIUpdates } from "./hooks/useRealtimeUIUpdates";
+export { useTrialManager } from "./hooks/useTrialManager"; // NEW
 
 export type {
   AuraProfile,

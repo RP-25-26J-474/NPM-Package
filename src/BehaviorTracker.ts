@@ -32,6 +32,13 @@ export interface BehaviorMetrics {
     type: string;
     data?: any;
   }>;
+  // NEW: Anomaly detection metrics
+  clickCount?: number;
+  misclickCount?: number;
+  rageClickCount?: number;
+  avgTimeToClick?: number;
+  formErrorCount?: number;
+  zoomEventCount?: number;
 }
 
 export interface BehaviorTrackerConfig {
@@ -69,7 +76,19 @@ export class BehaviorTracker {
     immediateReversion: false,
     settingChanges: [],
     events: [],
+    // NEW: Anomaly metrics
+    clickCount: 0,
+    misclickCount: 0,
+    rageClickCount: 0,
+    avgTimeToClick: 0,
+    formErrorCount: 0,
+    zoomEventCount: 0,
   };
+
+  // NEW: Track clicks for misclick/rage detection
+  private clickHistory: Array<{ x: number; y: number; time: number }> = [];
+  private lastClickTime: { x: number; y: number; time: number } | null = null;
+  private clickTimes: number[] = [];
 
   private flushTimer: number | null = null;
   private isDestroyed: boolean = false;
@@ -126,6 +145,9 @@ export class BehaviorTracker {
     // Track errors
     window.addEventListener('error', this.handleError);
 
+    // NEW: Track zoom events
+    window.addEventListener('wheel', this.handleWheel, { passive: true });
+
     // Track page visibility changes
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
 
@@ -144,7 +166,49 @@ export class BehaviorTracker {
     if (this.isDestroyed) return;
 
     this.metrics.interactionCount++;
+    this.metrics.clickCount = (this.metrics.clickCount || 0) + 1;
     this.lastInteractionTime = Date.now();
+
+    // NEW: Track for misclick and rage click detection
+    const x = event.clientX;
+    const y = event.clientY;
+    const now = Date.now();
+
+    this.clickHistory.push({ x, y, time: now });
+    this.clickHistory = this.clickHistory.filter((click) => now - click.time < 2000);
+
+    // Rage click detection: 3+ clicks in same area within 1 second
+    const recentClicks = this.clickHistory.filter(
+      (click) => now - click.time < 1000 && Math.abs(click.x - x) < 50 && Math.abs(click.y - y) < 50
+    );
+
+    if (recentClicks.length >= 3) {
+      this.metrics.rageClickCount = (this.metrics.rageClickCount || 0) + 1;
+      this.log('🔴 Rage click detected', {
+        x,
+        y,
+        count: recentClicks.length,
+      });
+    }
+
+    // Track click timing for time-to-click
+    this.clickTimes.push(now);
+    this.clickTimes = this.clickTimes.filter((t) => now - t < 10000);
+
+    if (this.clickTimes.length > 0) {
+      const avgTime = this.clickTimes.reduce((a, b) => a + (now - b), 0) / this.clickTimes.length;
+      this.metrics.avgTimeToClick = Math.round(avgTime);
+    }
+
+    // Misclick detection: click with no follow-up interaction
+    this.lastClickTime = { x, y, time: now };
+    setTimeout(() => {
+      if (this.lastClickTime && this.lastClickTime.time === now && !this.isDestroyed) {
+        // No interaction detected after click
+        this.metrics.misclickCount = (this.metrics.misclickCount || 0) + 1;
+        this.log('❌ Misclick detected', { x, y });
+      }
+    }, 500);
 
     const target = event.target as HTMLElement;
     this.trackEvent('click', {
@@ -154,7 +218,9 @@ export class BehaviorTracker {
     });
 
     this.log('Click tracked', {
-      total: this.metrics.interactionCount,
+      total: this.metrics.clickCount,
+      misclicks: this.metrics.misclickCount,
+      rageClicks: this.metrics.rageClickCount,
       target: target.tagName,
     });
   };
@@ -189,6 +255,7 @@ export class BehaviorTracker {
     if (this.isDestroyed) return;
 
     this.metrics.errorCount++;
+    this.metrics.formErrorCount = (this.metrics.formErrorCount || 0) + 1;
     this.trackEvent('error', {
       message: event.message,
       filename: event.filename,
@@ -199,6 +266,18 @@ export class BehaviorTracker {
       total: this.metrics.errorCount,
       message: event.message,
     });
+  };
+
+  // NEW: Track zoom events
+  private handleWheel = (event: WheelEvent) => {
+    if (this.isDestroyed) return;
+
+    if (event.ctrlKey) {
+      this.metrics.zoomEventCount = (this.metrics.zoomEventCount || 0) + 1;
+      this.log('🔍 Zoom event detected', {
+        zoomCount: this.metrics.zoomEventCount,
+      });
+    }
   };
 
   private handleVisibilityChange = () => {
@@ -356,6 +435,7 @@ export class BehaviorTracker {
       window.removeEventListener('keydown', this.handleKeydown);
       window.removeEventListener('scroll', this.handleScroll);
       window.removeEventListener('error', this.handleError);
+      window.removeEventListener('wheel', this.handleWheel); // NEW
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
       window.removeEventListener('beforeunload', this.handleBeforeUnload);
     }

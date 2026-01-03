@@ -25,6 +25,8 @@ import {
 } from "./utils";
 
 import { BehaviorTracker } from "./BehaviorTracker";
+import { useTrialManager } from "./hooks/useTrialManager";
+import { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
 
 // --- INITIAL DEFAULT STATES ---
 const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
@@ -117,8 +119,9 @@ export function AdaptiveProvider({
   simulateExtensionInstalled = true,
   apiEndpoint,
   enableBehaviorTracking = true,
+  mode = "standard", // NEW: "standard" | "trial-based"
   debugMode = false,
-}: AdaptiveProviderProps) {
+}: AdaptiveProviderProps & { mode?: "standard" | "trial-based" }) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
   const [profile, setProfile] = useState<AuraProfile | null>(initialProfile);
   const [tokens, setTokens] = useState<AuraTokens>(initialTokens);
@@ -129,6 +132,14 @@ export function AdaptiveProvider({
   const [isExtensionInstalled, setIsExtensionInstalled] =
     useState<boolean>(false);
   const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
+
+  // NEW: Trial manager for trial-based mode
+  const {
+    activeTrial,
+    showPrompt,
+    trialSettings,
+    handleFeedback: handleTrialFeedback,
+  } = useTrialManager(initialUserId || "guest", apiEndpoint || "", mode);
 
   //  extension simulation 
   const loadProfile = useCallback(
@@ -300,7 +311,13 @@ export function AdaptiveProvider({
     userId,
     sessionId,
     source,
-    profile,
+    profile: profile
+      ? {
+          ...profile,
+          // Merge trial settings if in trial-based mode
+          ...(mode === "trial-based" && trialSettings),
+        }
+      : null,
     tokens,
     loading,
     error,
@@ -318,9 +335,25 @@ export function AdaptiveProvider({
   };
 
   return React.createElement(
-    AdaptiveContext.Provider,
-    { value: contextValue },
-    children
+    React.Fragment,
+    {},
+    React.createElement(
+      AdaptiveContext.Provider,
+      { value: contextValue },
+      children
+    ),
+    // NEW: Show feedback prompt if needed (trial-based mode)
+    mode === "trial-based" &&
+      showPrompt &&
+      activeTrial &&
+      React.createElement(DirectionalFeedbackPrompt, {
+        trialId: activeTrial.trialId,
+        settingName: activeTrial.settingName,
+        oldValue: activeTrial.oldValue,
+        newValue: activeTrial.newValue,
+        onFeedback: handleTrialFeedback,
+        position: "bottom-right",
+      })
   );
 }
 
