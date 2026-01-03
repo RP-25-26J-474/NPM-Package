@@ -71,22 +71,13 @@ export function useTrialManager(
   const lastClickRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const evaluationStartTimeRef = useRef<number | null>(null);
 
-  // Only run in trial-based mode
-  if (mode !== 'trial-based') {
-    return {
-      activeTrial: null,
-      showPrompt: false,
-      trialSettings: {},
-      handleFeedback: async () => {},
-    };
-  }
-
   /**
    * Propose a trial based on ML suggestions
    */
   const proposeTrial = useCallback(
     async (mlSuggestedProfile?: Record<string, string>) => {
       try {
+        console.log('[Trial Manager] Proposing trial for user:', userId);
         const response = await fetch(`${apiEndpoint}/trials/propose`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -102,9 +93,11 @@ export function useTrialManager(
         });
 
         const data = await response.json();
+        console.log('[Trial Manager] Proposal response:', data);
 
         if (data.success && data.hasTrial) {
           const proposal = data.proposal;
+          console.log('[Trial Manager] Trial proposed:', proposal);
           const trial: Trial = {
             trialId: '',
             settingKey: proposal.settingKey,
@@ -128,6 +121,7 @@ export function useTrialManager(
    */
   const startTrial = useCallback(async (trial: Trial) => {
     try {
+      console.log('[Trial Manager] Starting trial:', trial);
       const response = await fetch(`${apiEndpoint}/trials/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,12 +139,14 @@ export function useTrialManager(
       });
 
       const data = await response.json();
+      console.log('[Trial Manager] Start response:', data);
 
       if (data.success) {
         const fullTrial: Trial = {
           ...trial,
           trialId: data.trialId,
         };
+        console.log('[Trial Manager] Trial started successfully:', fullTrial);
 
         // Apply trial settings
         setActiveTrial(fullTrial);
@@ -170,9 +166,12 @@ export function useTrialManager(
 
         // Set evaluation timer (60 seconds)
         if (timerRef.current) clearTimeout(timerRef.current);
+        const evalWindow = data.evaluationWindow || 60000;
+        console.log(`[Trial Manager] Evaluation scheduled in ${evalWindow}ms (${evalWindow/1000}s)`);
         timerRef.current = setTimeout(() => {
+          console.log('[Trial Manager] Evaluation triggered: timeout reached');
           evaluateTrial(fullTrial);
-        }, data.evaluationWindow || 60000);
+        }, evalWindow);
 
         // Start collecting interactions
         startMetricsCollection();
@@ -346,6 +345,7 @@ export function useTrialManager(
    */
   useEffect(() => {
     if (mode === 'trial-based') {
+      console.log('[Trial Manager] Initialized in trial-based mode');
       // Propose initial trial
       proposeTrial();
     }
@@ -356,6 +356,16 @@ export function useTrialManager(
       }
     };
   }, [mode, proposeTrial]);
+
+  // Return empty state if not in trial-based mode
+  if (mode !== 'trial-based') {
+    return {
+      activeTrial: null,
+      showPrompt: false,
+      trialSettings: {},
+      handleFeedback: async () => {},
+    };
+  }
 
   return {
     activeTrial,

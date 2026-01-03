@@ -11,9 +11,12 @@ export { AdaptiveRevert } from "./components/AdaptiveRevert";
 export { AdaptiveFeedbackPrompt } from "./components/AdaptiveFeedbackPrompt";
 export { AdaptiveChangeConfirmation } from "./components/AdaptiveChangeConfirmation";
 export { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
+// NOTE: AdaptiveSettingsChangePrompt temporarily disabled due to TypeScript build issues
+// export { AdaptiveSettingsChangePrompt } from "./components/AdaptiveSettingsChangePrompt";
 export { BehaviorTracker } from "./BehaviorTracker";
 export { useRealtimeUIUpdates } from "./hooks/useRealtimeUIUpdates";
 export { useTrialManager } from "./hooks/useTrialManager"; // NEW
+export { useSettingsSync } from "./hooks/useSettingsSync"; // NEW
 
 export type {
   AuraProfile,

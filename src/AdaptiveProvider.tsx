@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 
 import type {
@@ -27,6 +28,9 @@ import {
 import { BehaviorTracker } from "./BehaviorTracker";
 import { useTrialManager } from "./hooks/useTrialManager";
 import { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
+import { useSettingsSync } from "./hooks/useSettingsSync";
+// NOTE: AdaptiveSettingsChangePrompt temporarily disabled due to TypeScript build issues
+// import { AdaptiveSettingsChangePrompt } from "./components/AdaptiveSettingsChangePrompt";
 
 // --- INITIAL DEFAULT STATES ---
 const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
@@ -133,6 +137,11 @@ export function AdaptiveProvider({
     useState<boolean>(false);
   const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
 
+  // NEW: Settings change feedback state
+  const [showSettingsPrompt, setShowSettingsPrompt] = useState(false);
+  const [latestSettings, setLatestSettings] = useState<any>(null);
+  const [settingsSource, setSettingsSource] = useState<'manual' | 'ml' | 'trial'>('manual');
+
   // NEW: Trial manager for trial-based mode
   const {
     activeTrial,
@@ -140,6 +149,77 @@ export function AdaptiveProvider({
     trialSettings,
     handleFeedback: handleTrialFeedback,
   } = useTrialManager(initialUserId || "guest", apiEndpoint || "", mode);
+
+  // NEW: Settings sync for real-time updates from dashboard
+  const profileRef = useRef(profile);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
+  const handleSettingsUpdate = useCallback((settings: any, source: string) => {
+    console.log('[AURA] 📥 Received settings update from dashboard:', settings, 'source:', source);
+    
+    const currentProfile = profileRef.current;
+    console.log('[AURA] 📋 Current profile:', currentProfile);
+    
+    // Parse targetSize if it's a string (e.g., "28px" -> 28)
+    let targetSizeValue = currentProfile?.target_size || 44;
+    if (settings.targetSize) {
+      if (typeof settings.targetSize === 'number') {
+        targetSizeValue = settings.targetSize;
+      } else if (typeof settings.targetSize === 'string') {
+        const parsed = parseInt(settings.targetSize, 10);
+        targetSizeValue = isNaN(parsed) ? targetSizeValue : parsed;
+      }
+    }
+    
+    // Map dashboard settings to AuraProfile format
+    const updatedProfile: AuraProfile = {
+      font_size: settings.fontSize || currentProfile?.font_size || 'medium',
+      line_height: settings.lineHeight || currentProfile?.line_height || 1.5,
+      contrast_mode: settings.contrast || currentProfile?.contrast_mode || 'normal',
+      primary_color: settings.primaryColor || currentProfile?.primary_color || '#007bff',
+      secondary_color: settings.secondaryColor || currentProfile?.secondary_color || '#6c757d',
+      accent_color: settings.accentColor || currentProfile?.accent_color || '#28a745',
+      theme: settings.theme || currentProfile?.theme || 'light',
+      reduced_motion: settings.reducedMotion ?? currentProfile?.reduced_motion ?? false,
+      element_spacing: settings.spacing || currentProfile?.element_spacing || 'normal',
+      target_size: targetSizeValue,
+      tooltip_assist: currentProfile?.tooltip_assist ?? false,
+      layout_simplification: currentProfile?.layout_simplification ?? false,
+    };
+
+    console.log('[AURA] 🎨 Applying updated profile:', updatedProfile);
+    
+    setProfile(updatedProfile);
+    const newTokens = deriveTokensFromProfile(updatedProfile);
+    setTokens(newTokens);
+    setSource('user');
+    
+    console.log('[AURA] ✅ Tokens updated:', newTokens);
+    console.log('[AURA] 🎯 UI should now reflect: theme=%s, fontSize=%s, colors=%s', 
+      updatedProfile.theme, updatedProfile.font_size, updatedProfile.primary_color);
+    
+    // Show feedback prompt
+    setLatestSettings(settings);
+    setSettingsSource(source as 'manual' | 'ml' | 'trial');
+    setShowSettingsPrompt(true);
+    
+    console.log('[AURA] 💬 Feedback prompt shown');
+  }, []);
+
+  useSettingsSync({
+    userId: userId || initialUserId || 'guest',
+    apiEndpoint: apiEndpoint || '',
+    enabled: !!apiEndpoint && !!userId,
+    onSettingsUpdate: handleSettingsUpdate,
+    onConnect: () => {
+      console.log('[AURA] 🔌 Connected to settings sync');
+      console.log('[AURA] 👤 Monitoring user:', userId || initialUserId || 'guest');
+      console.log('[AURA] 🌐 SSE endpoint:', apiEndpoint);
+    },
+    onError: (error) => console.error('[AURA] ❌ Settings sync error:', error),
+  });
 
   //  extension simulation 
   const loadProfile = useCallback(
@@ -261,6 +341,66 @@ export function AdaptiveProvider({
     [apiEndpoint, userId, sessionId]
   );
 
+  // NEW: Handle settings change feedback
+  const handleSettingsFeedback = useCallback(
+    async (sentiment: 'positive' | 'negative' | 'neutral', comment?: string) => {
+      if (!apiEndpoint || !userId) {
+        console.warn('[AURA] Cannot submit feedback: missing apiEndpoint or userId');
+        return;
+      }
+
+      try {
+        // Convert sentiment to rating
+        const ratingMap = { positive: 5, neutral: 3, negative: 1 };
+        const rating = ratingMap[sentiment];
+
+        const feedbackPayload = {
+          parameter: 'settings_sync',
+          currentValue: latestSettings,
+          feedback: {
+            type: sentiment,
+            rating,
+            comment: comment || `Settings change ${sentiment}`,
+            accepted: sentiment === 'positive',
+            responseTime: 0,
+            isManualSelection: false,
+          },
+          context: {
+            deviceType: window.innerWidth < 768 ? 'mobile' : 'desktop',
+            timeOfDay: new Date().getHours() < 12 ? 'morning' : 'afternoon',
+            sessionDuration: 60000,
+            interactionCount: 1,
+            pageUrl: window.location.href,
+            source: 'settings_sync',
+          },
+          optimization: {
+            parameter: 'settings_sync',
+            oldValue: 'previous',
+            newValue: 'dashboard_update',
+            suggestedBy: settingsSource,
+          },
+        };
+
+        console.log('[AURA] Submitting settings feedback:', feedbackPayload);
+
+        const response = await fetch(`${apiEndpoint}/users/${userId}/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(feedbackPayload),
+        });
+
+        if (response.ok) {
+          console.log('[AURA] Settings feedback submitted successfully');
+        } else {
+          console.error('[AURA] Failed to submit settings feedback:', response.status);
+        }
+      } catch (error) {
+        console.error('[AURA] Error submitting settings feedback:', error);
+      }
+    },
+    [apiEndpoint, userId, latestSettings, settingsSource]
+  );
+
   // --- Initialization ---
   useEffect(() => {
     // KEEP OLD SIMULATION WORKING EXACTLY
@@ -354,6 +494,8 @@ export function AdaptiveProvider({
         onFeedback: handleTrialFeedback,
         position: "bottom-right",
       })
+    // NOTE: Settings change prompt temporarily disabled due to TypeScript build issues
+    // Will be re-enabled once JSX configuration is fixed
   );
 }
 

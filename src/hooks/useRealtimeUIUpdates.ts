@@ -50,7 +50,13 @@ export function useRealtimeUIUpdates() {
       root.classList.remove('aura-reduced-motion');
     }
 
-    console.log('[AURA] UI tokens applied in realtime:', tokens);
+    console.log('[AURA] 🎨 UI tokens applied in realtime:', tokens);
+    console.log('[AURA] 📐 CSS Variables set:');
+    console.log('  --aura-font-size-base:', tokens.typography.baseSize);
+    console.log('  --aura-color-primary:', tokens.colors.primary);
+    console.log('  --aura-color-background:', tokens.colors.background);
+    console.log('  --aura-color-text:', tokens.colors.text);
+    console.log('  Theme class:', `aura-theme-${tokens.flags.theme}`);
 
   }, [tokens, loading]);
 }
