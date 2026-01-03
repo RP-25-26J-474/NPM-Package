@@ -484,6 +484,8 @@ export function AdaptiveProvider({
     loading,
     error,
     isExtensionInstalled,
+    behaviorTracker, // Pass the tracker instance
+    apiEndpoint,     // Pass the API endpoint
     submitFeedback,
 
     // must return Promise<void> (your types.ts expects Promise)

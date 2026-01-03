@@ -111,6 +111,7 @@ export interface AdaptiveContextValue {
   error?: string;
   isExtensionInstalled: boolean;
   behaviorTracker?: any; // BehaviorTracker instance
+  apiEndpoint?: string; // Add this
   submitFeedback?: (feedback: AdaptiveFeedbackPayload) => Promise<{ success: boolean }>;
   reload: () => Promise<void>;
 }

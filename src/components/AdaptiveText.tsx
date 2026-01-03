@@ -188,6 +188,26 @@ export function AdaptiveText(props: AdaptiveTextProps) {
   if ((props as any)["aria-label"] !== undefined)
     elementProps["aria-label"] = (props as any)["aria-label"];
   if ((props as any).role !== undefined) elementProps.role = (props as any).role;
+  
+  // NEW: Track clicks on text (e.g. headers)
+  const { behaviorTracker } = useAdaptive();
+  const idToUse = (props as any).id || (props as any)["data-testid"];
+  
+  // Intercept click to track it
+  const originalOnClick = (props as any).onClick;
+  elementProps.onClick = (e: any) => {
+      if (behaviorTracker?.trackInteraction && idToUse) {
+          behaviorTracker.trackInteraction(idToUse, 'click', { variant });
+      } else if (behaviorTracker?.trackInteraction) {
+           // even without ID, we can track generic text interaction
+           behaviorTracker.trackInteraction('text-generic', 'click', { 
+               variant, 
+               preview: typeof children === 'string' ? children.substring(0, 20) : 'content'
+            });
+      }
+      
+      if (originalOnClick) originalOnClick(e);
+  };
 
   return React.createElement(asTag, elementProps, children);
 }

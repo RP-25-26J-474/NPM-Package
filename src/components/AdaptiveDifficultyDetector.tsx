@@ -355,6 +355,20 @@ export function AdaptiveDifficultyDetector(props: AdaptiveDifficultyDetectorProp
         cursor: 'pointer',
         textDecoration: 'underline'
       }
-    }, 'Dismiss')
+    }, 'Dismiss'),
+
+    // Add CSS animation
+    React.createElement('style', {}, `
+      @keyframes slideUpFadeIn {
+        from {
+          transform: translateX(-50%) translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(-50%) translateY(0);
+          opacity: 1;
+        }
+      }
+    `)
   );
 }

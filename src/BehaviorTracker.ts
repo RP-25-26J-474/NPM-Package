@@ -1,19 +1,3 @@
-// src/BehaviorTracker.ts
-/**
- * BehaviorTracker - Silently tracks user behavior WITHOUT prompts
- * 
- * Tracks:
- * - Time on page
- * - Interaction count (clicks, inputs)
- * - Error count
- * - Scroll depth
- * - Task completion
- * - Immediate reversion (critical signal!)
- * 
- * Sends data to YOUR backend every 5 minutes or on page close.
- * NO USER PROMPTS - Just observing behavior silently.
- */
-
 export interface BehaviorMetrics {
   duration: number;
   interactionCount: number;
@@ -87,6 +71,12 @@ export class BehaviorTracker {
 
   // NEW: Track clicks for misclick/rage detection
   private clickHistory: Array<{ x: number; y: number; time: number }> = [];
+  
+  // NEW: Scroll analysis state
+  private scrollHistory: Array<{ timestamp: number; direction: 'up' | 'down'; scrollTop: number }> = [];
+  private lastScrollTop: number = 0;
+  private lastThrashTime: number = 0;
+
   private lastClickTime: { x: number; y: number; time: number } | null = null;
   private clickTimes: number[] = [];
 
@@ -169,26 +159,69 @@ export class BehaviorTracker {
     this.metrics.clickCount = (this.metrics.clickCount || 0) + 1;
     this.lastInteractionTime = Date.now();
 
-    // NEW: Track for misclick and rage click detection
     const x = event.clientX;
     const y = event.clientY;
     const now = Date.now();
+    const target = event.target as HTMLElement;
 
+    // --- 1. Dead Click Detection ---
+    const interactiveTags = ['BUTTON', 'A', 'INPUT', 'TEXTAREA', 'SELECT', 'LABEL', 'SUMMARY', 'VIDEO', 'AUDIO'];
+    // Allow clicks on anything with onClick (hard to detect, but we can check a few things)
+    // or role=button.
+    const isInteractive = interactiveTags.includes(target.tagName) || 
+                          target.hasAttribute('onclick') || // rarely works in React
+                          target.getAttribute('role') === 'button' ||
+                          target.closest('a') !== null ||
+                          target.closest('button') !== null ||
+                          // Heuristic: Check if this element or parent has a click listener? (Impossible in standard JS)
+                          // Instead, assume if correct cursor
+                          false;
+
+    if (!isInteractive) {
+        // Potential dead click. Check if it looks misleading 
+        const style = window.getComputedStyle(target);
+        
+        // If cursor is pointer but not interactive tag -> Dead Click Candidate
+        // (Note: React often puts click handlers on divs with cursor:pointer)
+        const looksClickable = style.cursor === 'pointer' || style.textDecorationLine === 'underline';
+        
+        // To avoid false positives on React divs, we only flag if:
+        // No click handler fired? (We can't know).
+        // Let's rely on User Frustration: 
+        // Dead Click is usually repeated.
+        
+        // For MVP: Log it. Real app might check if DOM changes occurred after click.
+        if (looksClickable) {
+             this.log('⚠️ Dead Click Candidate', { tag: target.tagName });
+             // Only dispatch if repeated on same element?
+             // Or dispatch immediately with low confidence?
+             this.dispatchAnomaly('dead_click', {
+                 type: 'dead_click',
+                 description: 'Potential Dead Click (Non-interactive element with pointer)',
+                 targetMetadata: { tagName: target.tagName, className: target.className, text: target.innerText?.substring(0,30) }
+             });
+        }
+    }
+
+    // --- 2. Rage Click ---
     this.clickHistory.push({ x, y, time: now });
     this.clickHistory = this.clickHistory.filter((click) => now - click.time < 2000);
 
-    // Rage click detection: 3+ clicks in same area within 1 second
     const recentClicks = this.clickHistory.filter(
       (click) => now - click.time < 1000 && Math.abs(click.x - x) < 50 && Math.abs(click.y - y) < 50
     );
 
     if (recentClicks.length >= 3) {
       this.metrics.rageClickCount = (this.metrics.rageClickCount || 0) + 1;
-      this.log('🔴 Rage click detected', {
-        x,
-        y,
-        count: recentClicks.length,
+      this.log('🔴 Rage click detected', { x, y, count: recentClicks.length });
+      
+      this.dispatchAnomaly('rage_click', {
+          type: 'rage_click',
+          description: 'Rapid clicking detected (global)',
+          x, y
       });
+      // Clear history nearby to prevent spamming
+      this.clickHistory = this.clickHistory.filter(c => now - c.time >= 1000); 
     }
 
     // Track click timing for time-to-click
@@ -210,7 +243,6 @@ export class BehaviorTracker {
       }
     }, 500);
 
-    const target = event.target as HTMLElement;
     this.trackEvent('click', {
       tagName: target.tagName,
       className: target.className,
@@ -224,6 +256,80 @@ export class BehaviorTracker {
       target: target.tagName,
     });
   };
+
+  /**
+   * Track interaction with a specific component
+   * Called by AdaptiveButton, AdaptiveText, etc.
+   */
+  public trackInteraction(componentId: string, type: string, metadata?: any) {
+    if (this.isDestroyed) return;
+
+    this.log(`Component interaction: ${componentId} (${type})`, metadata);
+
+    // Track for Rage Clicks on this specific component
+    const now = Date.now();
+    
+    // Filter history for this component
+    const recentComponentClicks = this.clickHistory.filter(c => 
+      now - c.time < 1000 && (c as any).componentId === componentId
+    );
+
+    // Add current click to history with componentId
+    if (type === 'click') {
+      // Find the last click added by handleClick (global listener) and tag it, 
+      // OR push a new one if timing is slightly off. 
+      // Simpler: Just rely on the global one for position, but use internal list for component rage detection?
+      // Actually, let's keep a separate map for component rage clicks to be precise.
+    }
+
+    if (type === 'click' || type === 'rage_click_check') {
+        const lastClick = this.clickHistory[this.clickHistory.length - 1];
+        if (lastClick && now - lastClick.time < 100) {
+            (lastClick as any).componentId = componentId;
+        }
+
+        // Check rage click specifically on this component
+        const componentClicks = this.clickHistory.filter(c => 
+            now - c.time < 1000 && (c as any).componentId === componentId
+        );
+
+        if (componentClicks.length >= 3) {
+            this.metrics.rageClickCount = (this.metrics.rageClickCount || 0) + 1;
+            this.log(`🔴 Rage click detected on component ${componentId}`, { count: componentClicks.length });
+            
+            // Dispatch anomaly event for immediate feedback
+            this.dispatchAnomaly('rage_click', {
+                componentId,
+                type: 'rage_click',
+                description: 'Rapid clicking detected',
+                ...metadata
+            });
+        }
+    }
+
+    // Generic event tracking
+    this.trackEvent('component_interaction', {
+      componentId,
+      type,
+      ...metadata
+    });
+  }
+
+  /**
+   * Dispatch an anomaly event
+   */
+  private dispatchAnomaly(type: string, data: any) {
+      this.log(`Attempting to dispatch anomaly event: ${type}`);
+      if (typeof window !== 'undefined') {
+          const event = new CustomEvent('aura-anomaly', {
+              bubbles: true, // Allow bubbling
+              detail: { type, data }
+          });
+          window.dispatchEvent(event);
+          document.dispatchEvent(event); // Dispatch to document as well for redundancy
+          this.log(`Anomaly event dispatched: ${type}`);
+      }
+  }
 
   private handleKeydown = (event: KeyboardEvent) => {
     if (this.isDestroyed) return;
@@ -246,9 +352,46 @@ export class BehaviorTracker {
 
     this.metrics.scrollDepth = Math.max(this.metrics.scrollDepth, depth);
 
-    this.log('Scroll depth updated', {
-      depth: Math.round(depth * 100) + '%',
-    });
+    // --- Scroll Thrashing Detection ---
+    const now = Date.now();
+    const diff = scrollTop - this.lastScrollTop;
+    
+    if (Math.abs(diff) > 10) { // Ignore micro-scrolls
+        const direction = diff > 0 ? 'down' : 'up';
+        
+        // Add to history
+        this.scrollHistory.push({ timestamp: now, direction, scrollTop });
+        
+        // Keep last 2 seconds
+        this.scrollHistory = this.scrollHistory.filter(s => now - s.timestamp < 2000);
+
+        // Analyze reversals
+        let reversals = 0;
+        let lastDir = this.scrollHistory[0]?.direction;
+        
+        for (let i = 1; i < this.scrollHistory.length; i++) {
+            if (this.scrollHistory[i].direction !== lastDir) {
+                reversals++;
+                lastDir = this.scrollHistory[i].direction;
+            }
+        }
+        
+        // Up-Down-Up-Down (> 4 reversals is huge thrashing)
+        if (reversals > 4) { 
+             this.log('🎢 Scroll Thrashing Detected!', { reversals });
+             // Debounce dispatch (5s)
+             if (!this.lastThrashTime || now - this.lastThrashTime > 5000) {
+                 this.dispatchAnomaly('scroll_thrashing', {
+                     type: 'scroll_thrashing',
+                     description: 'Erratic scrolling behavior detected',
+                     reversals
+                 });
+                 this.lastThrashTime = now;
+             }
+        }
+    }
+    
+    this.lastScrollTop = scrollTop;
   };
 
   private handleError = (event: ErrorEvent) => {
