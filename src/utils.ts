@@ -37,6 +37,7 @@ type PersonalizationResponse = {
 // Hardcoded ML backend JSON
 // -------------------------
 
+
 export const CATEGORY_PROFILE_MOCK: AuraMlResponse = {
   user_id: "guest",
   session_id: "s_00001",
@@ -133,9 +134,9 @@ export const USER_PROFILE_MOCK: AuraMlResponse = {
     font_size: "x-large",
     line_height: 1.6,
     contrast_mode: "high",
-    primary_color: "#2E4669",
-    secondary_color: "#4D5A69",
-    accent_color: "#A7B7C9",
+    primary_color: "#1a7318",
+    secondary_color: "#1a73e8",
+    accent_color: "#e37400",
     theme: "dark",
     reduced_motion: true,
     element_spacing: "wide",
@@ -143,24 +144,11 @@ export const USER_PROFILE_MOCK: AuraMlResponse = {
     tooltip_assist: true,
     layout_simplification: true,
   },
-  node_outputs: {
-    font_size: {
-      confidence: 0.86,
-      explanations: ["zoom_count +2.8σ", "scroll_rate low"],
-      proposed: "x-large",
-      final: "x-large",
-    },
-    target_size: {
-      confidence: 0.78,
-      explanations: ["target_miss_rate high", "pointer_jitter high"],
-      proposed: 30,
-      final: 28,
-    },
-  },
+  node_outputs: {},
 };
 
-// u_002 (compact + light)
-export const USER_PROFILE_MOCK_2: AuraMlResponse = {
+// Normal user (smaller, compact)
+export const USER_PROFILE_MOCK_U002: AuraMlResponse = {
   user_id: "u_002",
   session_id: "s_00034",
   metadata: {
@@ -172,9 +160,9 @@ export const USER_PROFILE_MOCK_2: AuraMlResponse = {
     font_size: "small",
     line_height: 1.3,
     contrast_mode: "normal",
-    primary_color: "#4D371E",
-    secondary_color: "#826146",
-    accent_color: "#291000",
+    primary_color: "#b91c1c",
+    secondary_color: "#f97316",
+    accent_color: "#22c55e",
     theme: "light",
     reduced_motion: false,
     element_spacing: "compact",
@@ -185,101 +173,49 @@ export const USER_PROFILE_MOCK_2: AuraMlResponse = {
   node_outputs: {},
 };
 
-// u_003 (low vision: large typography + wide spacing, NOT simplified)
-export const USER_PROFILE_MOCK_3: AuraMlResponse = {
+// Low vision user (bigger text, higher line height, high contrast)
+export const USER_PROFILE_MOCK_U003: AuraMlResponse = {
   user_id: "u_003",
-  session_id: "s_00045",
+  session_id: "s_00056",
   metadata: {
     origin: "user",
-    created_at: "2025-10-08T10:05:00Z",
-    confidence_overall: 0.86,
-  },
-  profile: {
-    font_size: "x-large",
-    line_height: 1.7,
-    contrast_mode: "high",
-    primary_color: "#502959",
-    secondary_color: "#83698A",
-    accent_color: "#B08C07",
-    theme: "light",
-    reduced_motion: true,
-    element_spacing: "wide",
-    target_size: 28,
-    tooltip_assist: true,
-    layout_simplification: false,
-  },
-  node_outputs: {},
-};
-
-// u_004 (motor support: large targets + wide spacing + simplified)
-export const USER_PROFILE_MOCK_4: AuraMlResponse = {
-  user_id: "u_004",
-  session_id: "s_00062",
-  metadata: {
-    origin: "user",
-    created_at: "2025-10-09T08:40:00Z",
+    created_at: "2025-10-10T10:10:00Z",
     confidence_overall: 0.88,
   },
   profile: {
-    font_size: "large",
-    line_height: 1.6,
-    contrast_mode: "normal",
-    primary_color: "#459EA3",
-    secondary_color: "#89ABAB",
-    accent_color: "#B8BFBF",
-    theme: "dark",
+    font_size: "x-large",
+    line_height: 1.8,
+    contrast_mode: "high",
+    primary_color: "#0ea5e9",
+    secondary_color: "#38bdf8",
+    accent_color: "#f59e0b",
+    theme: "light",
     reduced_motion: true,
     element_spacing: "wide",
-    target_size: 36, // big click targets
+    target_size: 30,
     tooltip_assist: true,
-    layout_simplification: true,
+    layout_simplification: false, // don’t hide content; just improve readability
   },
   node_outputs: {},
 };
 
-//u_005 (guest shopper)
-export const USER_PROFILE_MOCK_5: AuraMlResponse = {
-  user_id: "u_005",
-  session_id: "s_00074",
+// Motor support user (bigger targets, more spacing, reduced motion)
+export const USER_PROFILE_MOCK_U004: AuraMlResponse = {
+  user_id: "u_004",
+  session_id: "s_00078",
   metadata: {
     origin: "user",
-    created_at: "2025-10-09T16:20:00Z",
-    confidence_overall: 0.76,
-  },
-  profile: {
-    font_size: "medium",
-    line_height: 1.5,
-    contrast_mode: "normal",
-    primary_color: "#154215",
-    secondary_color: "#558055",
-    accent_color: "#A30525",
-    theme: "light",
-    reduced_motion: false,
-    element_spacing: "normal",
-    target_size: 24,
-    tooltip_assist: false,
-    layout_simplification: false,
-  },
-  node_outputs: {},
-};
-
-//u_006 (low computer literacy user)
-export const USER_PROFILE_MOCK_6: AuraMlResponse = {
-  user_id: "u_006",
-  session_id: "s_00080",
-  metadata: {
-    origin: "user",
-    created_at: "2025-10-10T07:55:00Z",
-    confidence_overall: 0.84,
+    created_at: "2025-10-11T08:30:00Z",
+    confidence_overall: 0.86,
   },
   profile: {
     font_size: "large",
-    line_height: 1.7,
-    contrast_mode: "high",
-    primary_color: "#2563eb",
-    secondary_color: "#93c5fd",
-    accent_color: "#f97316",
-    theme: "light",
+    line_height: 1.5,
+    contrast_mode: "normal",
+    primary_color: "#7c3aed",
+    secondary_color: "#c4b5fd",
+    accent_color: "#22c55e",
+    theme: "dark",
     reduced_motion: true,
     element_spacing: "wide",
     target_size: 34,
@@ -289,10 +225,35 @@ export const USER_PROFILE_MOCK_6: AuraMlResponse = {
   node_outputs: {},
 };
 
+// Low computer literacy user (clearer UI: larger spacing, tooltips, simplified layout)
+export const USER_PROFILE_MOCK_U005: AuraMlResponse = {
+  user_id: "u_005",
+  session_id: "s_00091",
+  metadata: {
+    origin: "user",
+    created_at: "2025-10-12T07:20:00Z",
+    confidence_overall: 0.84,
+  },
+  profile: {
+    font_size: "large",
+    line_height: 1.7,
+    contrast_mode: "normal",
+    primary_color: "#16a34a",
+    secondary_color: "#86efac",
+    accent_color: "#f97316",
+    theme: "light",
+    reduced_motion: true,
+    element_spacing: "wide",
+    target_size: 32,
+    tooltip_assist: true,
+    layout_simplification: true,
+  },
+  node_outputs: {},
+};
 
-// -------------------------
-// Profile - Tokens mapping
-// -------------------------
+// -----------------------------------------
+// Profile -> Tokens mapping
+// -----------------------------------------
 
 const FONT_SIZE_MAP: Record<AuraFontSize, string> = {
   small: "14px",
@@ -302,7 +263,7 @@ const FONT_SIZE_MAP: Record<AuraFontSize, string> = {
 };
 
 const SPACING_MAP: Record<AuraElementSpacing, number> = {
-  compact: 4, 
+  compact: 4,
   normal: 8,
   wide: 12,
 };
@@ -318,6 +279,7 @@ const getBaseBackgroundAndText = (
       text: "#FFFFFF",
     };
   }
+
   return {
     background: "#FFFFFF",
     surface: highContrast ? "#F5F5F5" : "#FAFAFA",
@@ -345,8 +307,7 @@ export const deriveTokensFromProfile = (profile: AuraProfile): AuraTokens => {
     secondary: profile.secondary_color,
     accent: profile.accent_color,
     border: highContrast ? "#FFFFFF" : "#C4C4C4",
-    onPrimary: "#FFFFFF",
-    primaryContent: "#FFFFFF",
+    onPrimary: highContrast ? "#000000" : "#FFFFFF",
   };
 
   const typography = {
@@ -377,25 +338,30 @@ export const deriveTokensFromProfile = (profile: AuraProfile): AuraTokens => {
     theme: profile.theme,
   };
 
-  return { colors, typography, spacing, controls, flags };
+  return {
+    colors,
+    typography,
+    spacing,
+    controls,
+    flags,
+  };
 };
 
-// -------------------------
-// Mock users fetch function
-// -------------------------
+// -----------------------------------------
+// Mock "backend" call (ONLY for simulation)
+// -----------------------------------------
+
 export const mockFetchAuraProfile = async (
   userId: string
 ): Promise<AuraMlResponse> => {
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 250));
 
-  if (userId === "u_001") return USER_PROFILE_MOCK;
-  if (userId === "u_002") return USER_PROFILE_MOCK_2;
-  if (userId === "u_003") return USER_PROFILE_MOCK_3;
-  if (userId === "u_004") return USER_PROFILE_MOCK_4;
-  if (userId === "u_005") return USER_PROFILE_MOCK_5;
-  if (userId === "u_006") return USER_PROFILE_MOCK_6;
+  if (userId === "u_001") return USER_PROFILE_MOCK_U001;
+  if (userId === "u_002") return USER_PROFILE_MOCK_U002;
+  if (userId === "u_003") return USER_PROFILE_MOCK_U003;
+  if (userId === "u_004") return USER_PROFILE_MOCK_U004;
+  if (userId === "u_005") return USER_PROFILE_MOCK_U005;
 
-  // default
   return CATEGORY_PROFILE_MOCK;
 };
 
