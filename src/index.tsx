@@ -6,6 +6,11 @@ export { AdaptiveTable } from "./components/AdaptiveTable";
 export { AdaptiveCard } from "./components/AdaptiveCard";
 export { AdaptiveNavbar } from "./components/AdaptiveNavbar";
 export { AdaptiveGrid } from "./components/AdaptiveGrid";
+export { AdaptiveInput } from "./components/AdaptiveInput";
+export { AdaptiveSelect } from "./components/AdaptiveSelect";
+export { AdaptiveTextarea } from "./components/AdaptiveTextarea";
+export { AdaptiveMenu } from "./components/AdaptiveMenu";
+export { AdaptiveDropdown } from "./components/AdaptiveDropdown";
 
 export type {
   AuraProfileV2,

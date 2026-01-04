@@ -150,7 +150,7 @@ function AdaptiveNavbarNav(props: AdaptiveComponentProps) {
   const style: AnyStyle = {
     display: "flex",
     alignItems: "center",
-    gap: gap.toString() + "px",
+    columnGap: gap.toString() + "px",
     flexWrap: "wrap",
     // In simplified mode, keep items easier to hit and avoid tight clustering
     rowGap: simplify ? Math.max(8, Math.round(controls.minTargetSize * 0.25)) : undefined,
