@@ -160,6 +160,36 @@ export function AdaptiveProvider({
     profileRef.current = profile;
   }, [profile]);
 
+  // NEW: Helper to check if settings significantly deviate from default
+  const isSignificantDeviation = useCallback((newSettings: any, baseProfile: AuraProfile): boolean => {
+    if (!newSettings) return false;
+
+    // Check Theme
+    if (newSettings.theme && newSettings.theme !== baseProfile.theme) return true;
+
+    // Check Font Size
+    const currentFontSize = newSettings.fontSize || baseProfile.font_size;
+    if (currentFontSize !== baseProfile.font_size) return true;
+
+    // Check High Contrast
+    const currentContrast = newSettings.contrast || baseProfile.contrast_mode;
+    if (currentContrast !== 'normal' && currentContrast !== baseProfile.contrast_mode) return true;
+
+    // Check Target Size (threshold > 4px change)
+    let newTargetSize = baseProfile.target_size;
+    if (newSettings.targetSize) {
+        const val = typeof newSettings.targetSize === 'string' ? parseInt(newSettings.targetSize, 10) : newSettings.targetSize;
+        if (!isNaN(val)) newTargetSize = val;
+    }
+    if (Math.abs(newTargetSize - baseProfile.target_size) > 4) return true;
+
+    // Check Spacing
+    const currentSpacing = newSettings.spacing || baseProfile.element_spacing;
+    if (currentSpacing !== baseProfile.element_spacing) return true;
+
+    return false;
+  }, []);
+
   const handleSettingsUpdate = useCallback((settings: any, source: string, mlConf?: number) => {
     console.log('[AURA] 📥 Received settings update:', settings, 'source:', source);
     
@@ -219,16 +249,22 @@ export function AdaptiveProvider({
     console.log('[AURA] 🎯 UI should now reflect: theme=%s, fontSize=%s, colors=%s', 
       updatedProfile.theme, updatedProfile.font_size, updatedProfile.primary_color);
     
+    // Check for significant deviation
+    const isSignificant = isSignificantDeviation(settings, initialProfile);
+    console.log(`[AURA] 📏 Significant deviation check: ${isSignificant} (Source: ${source})`);
+
     // Store for feedback prompt
     setLatestSettings(settings);
     setSettingsSource(source as 'manual' | 'ml' | 'trial');
     setMlConfidence(mlConf || 0.5);
     setChangedSettingKey(primaryChangedKey);
     setSettingOldValue(oldVal);
-    setShowSettingsPrompt(source === 'ml'); // Only show for ML changes
     
-    console.log('[AURA] 💬 Feedback prompt:', source === 'ml' ? 'shown' : 'hidden');
-  }, []);
+    // Only show prompt if source is ML AND the change is significant
+    setShowSettingsPrompt(source === 'ml' && isSignificant);
+    
+    console.log('[AURA] 💬 Feedback prompt:', (source === 'ml' && isSignificant) ? 'shown' : 'hidden');
+  }, [isSignificantDeviation]);
 
   useSettingsSync({
     userId: userId || initialUserId || 'guest',
