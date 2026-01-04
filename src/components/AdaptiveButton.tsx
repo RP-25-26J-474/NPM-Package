@@ -1,4 +1,4 @@
-// src/AdaptiveButton.tsx
+// src/components/AdaptiveButton.tsx
 import React, {
   useState,
   type MouseEvent,
@@ -7,7 +7,7 @@ import React, {
 import { useAdaptive } from "../AdaptiveProvider";
 import type { AdaptiveComponentProps } from "../types";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost";
+export type ButtonVariant = "primary" | "secondary" | "accent" | "ghost";
 
 export interface AdaptiveButtonProps
   extends AdaptiveComponentProps,
@@ -38,61 +38,73 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   const nameProp = props.name;
   const valueProp = props.value;
 
-  const baseBg =
-    variant === "secondary"
-      ? colors.secondary
-      : variant === "ghost"
-      ? "transparent"
-      : colors.primary;
+  // ---- Variant colors (new schema has explicit content colors) ----
+  let bg = colors.primary;
+  let fg = colors.onPrimary;
 
-  const textColor =
-    variant === "ghost" ? colors.primary : colors.onPrimary ?? colors.text;
+  if (variant === "secondary") {
+    bg = colors.secondary;
+    fg = colors.onSecondary;
+  } else if (variant === "accent") {
+    bg = colors.accent;
+    fg = colors.onAccent;
+  } else if (variant === "ghost") {
+    bg = "transparent";
+    fg = colors.primary;
+  }
 
-  const paddingY = Math.max(
-    spacing.base,
-    Math.round(controls.minTargetSize * 0.25)
-  );
-  const paddingX = paddingY * 2;
+  // ---- New spacing tokens ----
+  // Use ML padding as the base. Ensure the control is still finger-friendly.
+  const basePadY = spacing.padY;
+  const basePadX = spacing.padX;
+
+  // Guarantee minimum comfort padding relative to target size
+  const minPadY = Math.round(controls.minTargetSize * 0.22);
+  const minPadX = Math.round(controls.minTargetSize * 0.40);
+
+  const paddingY = Math.max(basePadY, minPadY);
+  const paddingX = Math.max(basePadX, minPadX);
 
   const handleMouseEnter = (event: MouseEvent<HTMLButtonElement>) => {
     setHovered(true);
-    if (onMouseEnterProp) {
-      onMouseEnterProp(event);
-    }
+    if (onMouseEnterProp) onMouseEnterProp(event);
   };
 
   const handleMouseLeave = (event: MouseEvent<HTMLButtonElement>) => {
     setHovered(false);
-    if (onMouseLeaveProp) {
-      onMouseLeaveProp(event);
-    }
+    if (onMouseLeaveProp) onMouseLeaveProp(event);
   };
 
   const buttonStyle: React.CSSProperties = {
     minWidth: controls.minTargetSize,
     minHeight: controls.minTargetSize,
     padding: paddingY.toString() + "px " + paddingX.toString() + "px",
+
     borderRadius: 9999,
     border:
       variant === "ghost"
         ? "1px solid " + colors.primary
         : "1px solid " + colors.border,
-    backgroundColor: disabled ? colors.border : baseBg,
-    color: disabled ? colors.background : textColor,
+
+    backgroundColor: disabled ? colors.border : bg,
+    color: disabled ? colors.background : fg,
+
     fontSize: typography.body,
     lineHeight: typography.lineHeight,
+
     cursor: disabled ? "not-allowed" : "pointer",
+
     transform:
-      !flags.reducedMotion && hovered && !disabled
-        ? "scale(1.03)"
-        : "scale(1)",
+      !flags.reducedMotion && hovered && !disabled ? "scale(1.03)" : "scale(1)",
+
     transition: flags.reducedMotion
       ? "none"
       : "transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease",
+
     outline: "none",
   };
 
-  // Merge any user-provided inline style manually (no object spread)
+  // Merge user-provided inline style manually (no object spread)
   if (styleProp) {
     const keys = Object.keys(styleProp) as Array<keyof typeof styleProp>;
     for (let i = 0; i < keys.length; i++) {
@@ -111,12 +123,12 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   buttonProps.onClick = onClickProp;
   buttonProps.onMouseEnter = handleMouseEnter;
   buttonProps.onMouseLeave = handleMouseLeave;
+
   if (typeProp !== undefined) buttonProps.type = typeProp;
   if (ariaLabelProp !== undefined) (buttonProps as any)["aria-label"] = ariaLabelProp;
   if (idProp !== undefined) buttonProps.id = idProp;
   if (nameProp !== undefined) buttonProps.name = nameProp;
   if (valueProp !== undefined) buttonProps.value = valueProp;
 
-  // Use createElement instead of JSX to avoid JSX intrinsic element typing issues
   return React.createElement("button", buttonProps, children);
 }

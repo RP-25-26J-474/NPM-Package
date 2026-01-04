@@ -8,8 +8,8 @@ export { AdaptiveNavbar } from "./components/AdaptiveNavbar";
 export { AdaptiveGrid } from "./components/AdaptiveGrid";
 
 export type {
-  AuraProfile,
-  AuraMlResponse,
+  AuraProfileV2,
+  AuraMlEnvelopeV2,
   AuraTokens,
   AdaptiveContextValue,
 } from "./types";

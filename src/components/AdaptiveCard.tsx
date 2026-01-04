@@ -71,9 +71,8 @@ function AdaptiveCardRoot(props: AdaptiveCardProps) {
   const mediaPlacement: MediaPlacement =
     props.mediaPlacement === undefined ? "top" : props.mediaPlacement;
 
-  const pad = spacing.base;
-  const padY = Math.max(10, Math.round(pad * 1.6));
-  const padX = Math.max(12, Math.round(pad * 1.8));
+  const padY = Math.max(10, spacing.padY);
+  const padX = Math.max(12, spacing.padX);
 
   const wrapperStyle: AnyStyle = {
     border: "1px solid " + colors.border,
@@ -128,7 +127,7 @@ function AdaptiveCardBody(props: AdaptiveComponentProps) {
   const style: AnyStyle = {
     display: "flex",
     flexDirection: "column",
-    gap: Math.max(8, spacing.base).toString() + "px",
+    gap: Math.max(8, spacing.gapY).toString() + "px",
   };
 
   mergeStyle(style, (props as any).style);
@@ -177,11 +176,15 @@ function AdaptiveCardActions(
     shown = children.slice(0, 1);
   }
 
+  const gapX = Math.max(10, spacing.gapX);
+  const gapY = Math.max(10, spacing.gapY);
+
   const style: AnyStyle = {
     display: "flex",
     flexDirection: layout === "vertical" ? "column" : "row",
-    gap: Math.max(10, spacing.base).toString() + "px",
-    marginTop: Math.max(10, spacing.base).toString() + "px",
+    columnGap: gapX.toString() + "px",
+    rowGap: gapY.toString() + "px",
+    marginTop: gapY.toString() + "px",
     alignItems: layout === "vertical" ? "stretch" : "center",
     justifyContent: align === "center" ? "center" : "flex-start",
     flexWrap: layout === "horizontal" ? "wrap" : "nowrap",
@@ -193,8 +196,8 @@ function AdaptiveCardActions(
     height: "1px",
     backgroundColor: colors.border,
     width: "100%",
-    marginTop: Math.max(10, spacing.base).toString() + "px",
-    marginBottom: Math.max(10, spacing.base).toString() + "px",
+    marginTop: gapY.toString() + "px",
+    marginBottom: gapY.toString() + "px",
   };
 
   return React.createElement(
@@ -247,7 +250,7 @@ function AdaptiveCardMedia(
   if (placement === "top") {
     return React.createElement(
       "div",
-      { style: { marginBottom: Math.max(12, spacing.base * 2) } } as any,
+      { style: { marginBottom: Math.max(12, spacing.gapY * 2) } } as any,
       React.createElement("img", {
         src: src,
         alt: (props as any).alt || "",
@@ -275,10 +278,14 @@ function AdaptiveCardSideLayout(
 
   const placement = (props as any).placement || "left";
 
+  const gapX = Math.max(14, spacing.gapX);
+  const gapY = Math.max(10, spacing.gapY);
+
   const style: AnyStyle = {
     display: "flex",
     flexDirection: placement === "right" ? "row-reverse" : "row",
-    gap: Math.max(14, spacing.base * 2).toString() + "px",
+    columnGap: gapX.toString() + "px",
+    rowGap: gapY.toString() + "px",
     alignItems: "flex-start",
   };
 
@@ -301,8 +308,8 @@ function AdaptiveCardDivider(props: AdaptiveComponentProps) {
     height: "1px",
     width: "100%",
     backgroundColor: colors.border,
-    marginTop: Math.max(10, spacing.base).toString() + "px",
-    marginBottom: Math.max(10, spacing.base).toString() + "px",
+    marginTop: Math.max(10, spacing.gapY).toString() + "px",
+    marginBottom: Math.max(10, spacing.gapY).toString() + "px",
   };
 
   mergeStyle(style, (props as any).style);

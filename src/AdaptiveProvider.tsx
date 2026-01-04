@@ -5,37 +5,31 @@ import React, {
   useEffect,
   useState,
   useCallback,
-  useRef,
 } from "react";
 
 import type {
   AdaptiveContextValue,
   AdaptiveProviderProps,
-  AuraProfile,
+  AuraProfileV2,
   AuraTokens,
   AuraSource,
-  AuraMlResponse,
+  AuraMlEnvelopeV2,
 } from "./types";
 
-import {
-  CATEGORY_PROFILE_MOCK,
-  deriveTokensFromProfile,
-  mockFetchAuraProfile,
-} from "./utils";
+import { deriveTokensFromProfile, mockFetchAuraEnvelope, DEFAULT_GUEST_PROFILE } from "./utils";
 
-const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
+const initialProfile: AuraProfileV2 = DEFAULT_GUEST_PROFILE;
 const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
 
 const AdaptiveContext = createContext<AdaptiveContextValue | null>(null);
 
 // ----------------------------
-// Future extension bridge (kept for later)
+// Extension bridge (page <-> content script via window.postMessage)
 // ----------------------------
-
 type AuraExtensionBridge = {
   isInstalled: () => Promise<boolean>;
   getUserId: () => Promise<string>;
-  getMlProfile: (userId: string) => Promise<AuraMlResponse>;
+  getMlEnvelope: (userId: string) => Promise<AuraMlEnvelopeV2>;
 };
 
 function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
@@ -54,7 +48,7 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
       }, timeoutMs);
 
       function onMessage(ev: MessageEvent) {
-        const d = ev && (ev as any).data ? (ev as any).data : null;
+        const d = ev && ev.data ? ev.data : null;
         if (!d || d.__aura !== true) return;
         if (d.requestId !== requestId) return;
         if (d.type !== responseType) return;
@@ -65,7 +59,6 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
       }
 
       window.addEventListener("message", onMessage);
-
       window.postMessage({ __aura: true, type: requestType, requestId }, "*");
     });
   }
@@ -85,11 +78,12 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
         "AURA_EXT_GET_USER_ID",
         "AURA_EXT_USER_ID"
       );
-      return payload?.userId ? String(payload.userId) : "guest";
+      return payload && payload.userId ? String(payload.userId) : "guest";
     },
 
-    getMlProfile: async (_userId: string) => {
-      const payload = await request<AuraMlResponse>(
+    getMlEnvelope: async (_userId: string) => {
+      // extension returns the full envelope directly
+      const payload = await request<AuraMlEnvelopeV2>(
         "AURA_EXT_GET_ML_PROFILE",
         "AURA_EXT_ML_PROFILE"
       );
@@ -98,24 +92,19 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
   };
 }
 
-// ----------------------------
-// Helper: apply ML json to state
-// ----------------------------
-
-function applyMlJson(
-  mlJson: AuraMlResponse,
+function applyEnvelope(
+  env: AuraMlEnvelopeV2,
   setUserId: (v: string) => void,
   setSource: (v: AuraSource) => void,
-  setProfile: (v: AuraProfile) => void,
+  setProfile: (v: AuraProfileV2) => void,
   setTokens: (v: AuraTokens) => void
 ) {
-  setUserId(mlJson.user_id);
-  setSource(mlJson.metadata.origin);
-  setProfile(mlJson.profile);
-  setTokens(deriveTokensFromProfile(mlJson.profile));
+  const inner = env.profile;
+  setUserId(inner.user_id);
+  setSource(inner.metadata.origin);
+  setProfile(inner.profile);
+  setTokens(deriveTokensFromProfile(inner.profile));
 }
-
-// --- PROVIDER COMPONENT ---
 
 export function AdaptiveProvider({
   children,
@@ -123,21 +112,15 @@ export function AdaptiveProvider({
   simulateExtensionInstalled = true,
 }: AdaptiveProviderProps) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
-  const [profile, setProfile] = useState<AuraProfile | null>(initialProfile);
+  const [profile, setProfile] = useState<AuraProfileV2 | null>(initialProfile);
   const [tokens, setTokens] = useState<AuraTokens>(initialTokens);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>();
   const [source, setSource] = useState<AuraSource>("category");
-  const [isExtensionInstalled, setIsExtensionInstalled] =
-    useState<boolean>(false);
+  const [isExtensionInstalled, setIsExtensionInstalled] = useState<boolean>(false);
 
-  // prevent double-handling messages
-  const lastAppliedSessionRef = useRef<string>("");
-
-  // -------------------------
-  // OLD SIMULATION PATH
-  // -------------------------
-  const loadProfile = useCallback(
+  // DEV path: local mocks
+  const loadFromMocks = useCallback(
     async (uid?: string) => {
       const effectiveUserId = uid ?? initialUserId ?? "guest";
 
@@ -145,19 +128,15 @@ export function AdaptiveProvider({
         setLoading(true);
         setError(undefined);
 
-        const response = await mockFetchAuraProfile(effectiveUserId);
-
-        setUserId(response.user_id);
-        setSource(response.metadata.origin);
-        setProfile(response.profile);
-        setTokens(deriveTokensFromProfile(response.profile));
+        const env = await mockFetchAuraEnvelope(effectiveUserId);
+        applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens);
       } catch (err) {
-        console.error("[AURA] Failed to load personalization", err);
+        console.error("[AURA] Failed to load personalization (mock)", err);
         setError("Failed to load personalization");
-        setProfile(initialProfile);
-        setTokens(initialTokens);
         setSource("fallback");
         setUserId("guest");
+        setProfile(initialProfile);
+        setTokens(initialTokens);
       } finally {
         setLoading(false);
       }
@@ -165,9 +144,7 @@ export function AdaptiveProvider({
     [initialUserId]
   );
 
-  // -------------------------
-  // REAL EXTENSION PATH (future)
-  // -------------------------
+  // REAL path: extension
   const loadFromExtension = useCallback(async () => {
     const bridge = createRealExtensionBridge(900);
 
@@ -179,64 +156,56 @@ export function AdaptiveProvider({
       setIsExtensionInstalled(installed);
 
       if (!installed) {
-        await loadProfile("guest");
+        // no extension -> fallback to guest tokens
+        setSource("fallback");
+        setUserId("guest");
+        setProfile(initialProfile);
+        setTokens(initialTokens);
         return;
       }
 
       const extUserId = await bridge.getUserId();
-      const mlJson = await bridge.getMlProfile(extUserId);
-
-      applyMlJson(mlJson, setUserId as any, setSource, setProfile as any, setTokens);
+      const env = await bridge.getMlEnvelope(extUserId);
+      applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens);
     } catch (err) {
-      console.error("[AURA] Extension path failed, falling back to guest", err);
+      console.error("[AURA] Extension path failed", err);
       setError("Failed to load personalization from extension");
-      await loadProfile("guest");
+      setSource("fallback");
+      setUserId("guest");
+      setProfile(initialProfile);
+      setTokens(initialTokens);
     } finally {
       setLoading(false);
     }
-  }, [loadProfile]);
+  }, []);
 
-  // -------------------------
-  // ✅ NEW: Live updates listener (push)
-  // -------------------------
+  // Initialization
   useEffect(() => {
-    if (simulateExtensionInstalled) return; // in simulation, extension not driving changes
+    if (simulateExtensionInstalled) {
+      setIsExtensionInstalled(true);
+      const mockUserId = initialUserId ?? "u_001";
+      loadFromMocks(mockUserId);
+      return;
+    }
+    loadFromExtension();
+  }, [simulateExtensionInstalled, initialUserId, loadFromMocks, loadFromExtension]);
+
+  // Instant update when extension user changes (no refresh)
+  useEffect(() => {
+    if (simulateExtensionInstalled) return;
 
     function onMessage(ev: MessageEvent) {
-      const d: any = ev && (ev as any).data ? (ev as any).data : null;
+      const d = ev && ev.data ? ev.data : null;
       if (!d || d.__aura !== true) return;
+      if (d.type !== "AURA_EXT_PROFILE_CHANGED") return;
 
-      // Extension broadcasts this when user switches
-      if (d.type === "AURA_EXT_PROFILE_CHANGED") {
-        const mlJson = d.payload as AuraMlResponse;
-        if (!mlJson || !mlJson.profile || !mlJson.metadata) return;
-
-        // avoid applying same update twice
-        const sessionKey = String(mlJson.session_id || "");
-        if (sessionKey && lastAppliedSessionRef.current === sessionKey) return;
-        lastAppliedSessionRef.current = sessionKey;
-
-        applyMlJson(mlJson, setUserId as any, setSource, setProfile as any, setTokens);
-      }
+      // When extension says profile changed -> re-fetch
+      loadFromExtension();
     }
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [simulateExtensionInstalled]);
-
-  // --- Initialization ---
-  useEffect(() => {
-    // KEEP OLD SIMULATION WORKING
-    if (simulateExtensionInstalled) {
-      setIsExtensionInstalled(true);
-      const mockUserId = initialUserId ?? "u_001";
-      loadProfile(mockUserId);
-      return;
-    }
-
-    // REAL extension mode
-    loadFromExtension();
-  }, [simulateExtensionInstalled, initialUserId, loadProfile, loadFromExtension]);
+  }, [simulateExtensionInstalled, loadFromExtension]);
 
   const contextValue: AdaptiveContextValue = {
     userId,
@@ -249,7 +218,7 @@ export function AdaptiveProvider({
 
     reload: async () => {
       if (simulateExtensionInstalled) {
-        await loadProfile(userId);
+        await loadFromMocks(userId);
         return;
       }
       await loadFromExtension();
@@ -263,11 +232,8 @@ export function AdaptiveProvider({
   );
 }
 
-// --- HOOK ---
 export function useAdaptive(): AdaptiveContextValue {
   const ctx = useContext(AdaptiveContext);
-  if (!ctx) {
-    throw new Error("useAdaptive must be used inside <AdaptiveProvider>");
-  }
+  if (!ctx) throw new Error("useAdaptive must be used inside <AdaptiveProvider>");
   return ctx;
 }
