@@ -244,8 +244,8 @@ export function AdaptiveProvider({
       reduced_motion: settings.reducedMotion ?? currentProfile?.reduced_motion ?? false,
       element_spacing: settings.spacing || currentProfile?.element_spacing || 'normal',
       target_size: targetSizeValue,
-      tooltip_assist: currentProfile?.tooltip_assist ?? false,
-      layout_simplification: currentProfile?.layout_simplification ?? false,
+      tooltip_assist: settings.tooltipAssist ?? currentProfile?.tooltip_assist ?? false,
+      layout_simplification: settings.layoutSimplification ?? currentProfile?.layout_simplification ?? false,
     };
 
     console.log('[AURA] 🎨 Applying updated profile:', updatedProfile);
@@ -342,6 +342,9 @@ export function AdaptiveProvider({
   // -------------------------
   // REAL EXTENSION PATH (future)
   // -------------------------
+  // -------------------------
+  // REAL EXTENSION PATH (future)
+  // -------------------------
   const loadFromExtension = useCallback(async () => {
     const bridge = createRealExtensionBridge(900);
 
@@ -352,24 +355,8 @@ export function AdaptiveProvider({
       const installed = await bridge.isInstalled();
       setIsExtensionInstalled(installed);
 
-        if (!installed) {
-          // No extension → category guest for now
-          await loadProfile("guest");
-          return;
-        }
-
-        const extUserId = await bridge.getUserId();
-        const mlJson = await bridge.getMlProfile(extUserId);
-
-        setUserId(mlJson.user_id);
-        setSessionId(mlJson.session_id);
-        setSource(mlJson.metadata.origin);
-        setProfile(mlJson.profile);
-        setTokens(deriveTokensFromProfile(mlJson.profile));
-      } catch (err) {
-        console.error("[AURA] Extension path failed, falling back to guest", err);
-        setError("Failed to load personalization from extension");
-
+      if (!installed) {
+        // No extension → category guest for now
         await loadProfile("guest");
         return;
       }

@@ -356,7 +356,7 @@ export const mockFetchAuraProfile = async (
 ): Promise<AuraMlResponse> => {
   await new Promise((resolve) => setTimeout(resolve, 250));
 
-  if (userId === "u_001") return USER_PROFILE_MOCK_U001;
+  if (userId === "u_001") return USER_PROFILE_MOCK;
   if (userId === "u_002") return USER_PROFILE_MOCK_U002;
   if (userId === "u_003") return USER_PROFILE_MOCK_U003;
   if (userId === "u_004") return USER_PROFILE_MOCK_U004;
