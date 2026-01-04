@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 
 import type {
@@ -13,7 +14,7 @@ import type {
   AuraProfile,
   AuraTokens,
   AuraSource,
-  AuraMlResponse, 
+  AuraMlResponse,
 } from "./types";
 
 import {
@@ -22,11 +23,9 @@ import {
   mockFetchAuraProfile,
 } from "./utils";
 
-// --- INITIAL DEFAULT STATES ---
 const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
 const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
 
-// Keep context relaxed to avoid Provider JSX type edge cases
 const AdaptiveContext = createContext<AdaptiveContextValue | null>(null);
 
 // ----------------------------
@@ -55,7 +54,7 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
       }, timeoutMs);
 
       function onMessage(ev: MessageEvent) {
-        const d = ev && ev.data ? ev.data : null;
+        const d = ev && (ev as any).data ? (ev as any).data : null;
         if (!d || d.__aura !== true) return;
         if (d.requestId !== requestId) return;
         if (d.type !== responseType) return;
@@ -67,10 +66,7 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
 
       window.addEventListener("message", onMessage);
 
-      window.postMessage(
-        { __aura: true, type: requestType, requestId },
-        "*"
-      );
+      window.postMessage({ __aura: true, type: requestType, requestId }, "*");
     });
   }
 
@@ -89,20 +85,34 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
         "AURA_EXT_GET_USER_ID",
         "AURA_EXT_USER_ID"
       );
-      return payload && payload.userId ? String(payload.userId) : "guest";
+      return payload?.userId ? String(payload.userId) : "guest";
     },
 
-    // Extension should respond with full AuraMlResponse json
-    getMlProfile: async (userId: string) => {
+    getMlProfile: async (_userId: string) => {
       const payload = await request<AuraMlResponse>(
         "AURA_EXT_GET_ML_PROFILE",
         "AURA_EXT_ML_PROFILE"
       );
-
-      // If extension returns profile for a different userId, prefer extension data.
       return payload;
     },
   };
+}
+
+// ----------------------------
+// Helper: apply ML json to state
+// ----------------------------
+
+function applyMlJson(
+  mlJson: AuraMlResponse,
+  setUserId: (v: string) => void,
+  setSource: (v: AuraSource) => void,
+  setProfile: (v: AuraProfile) => void,
+  setTokens: (v: AuraTokens) => void
+) {
+  setUserId(mlJson.user_id);
+  setSource(mlJson.metadata.origin);
+  setProfile(mlJson.profile);
+  setTokens(deriveTokensFromProfile(mlJson.profile));
 }
 
 // --- PROVIDER COMPONENT ---
@@ -121,7 +131,12 @@ export function AdaptiveProvider({
   const [isExtensionInstalled, setIsExtensionInstalled] =
     useState<boolean>(false);
 
-  //  extension simulation 
+  // prevent double-handling messages
+  const lastAppliedSessionRef = useRef<string>("");
+
+  // -------------------------
+  // OLD SIMULATION PATH
+  // -------------------------
   const loadProfile = useCallback(
     async (uid?: string) => {
       const effectiveUserId = uid ?? initialUserId ?? "guest";
@@ -139,8 +154,6 @@ export function AdaptiveProvider({
       } catch (err) {
         console.error("[AURA] Failed to load personalization", err);
         setError("Failed to load personalization");
-
-        // Fallback to initial category profile
         setProfile(initialProfile);
         setTokens(initialTokens);
         setSource("fallback");
@@ -152,45 +165,68 @@ export function AdaptiveProvider({
     [initialUserId]
   );
 
-  // real extension path (inactive for now unless simulateExtensionInstalled=false)
-  const loadFromExtension = useCallback(
-    async () => {
-      const bridge = createRealExtensionBridge(900);
+  // -------------------------
+  // REAL EXTENSION PATH (future)
+  // -------------------------
+  const loadFromExtension = useCallback(async () => {
+    const bridge = createRealExtensionBridge(900);
 
-      try {
-        setLoading(true);
-        setError(undefined);
+    try {
+      setLoading(true);
+      setError(undefined);
 
-        const installed = await bridge.isInstalled();
-        setIsExtensionInstalled(installed);
+      const installed = await bridge.isInstalled();
+      setIsExtensionInstalled(installed);
 
-        if (!installed) {
-          // No extension → category guest for now
-          await loadProfile("guest");
-          return;
-        }
-
-        const extUserId = await bridge.getUserId();
-        const mlJson = await bridge.getMlProfile(extUserId);
-
-        setUserId(mlJson.user_id);
-        setSource(mlJson.metadata.origin);
-        setProfile(mlJson.profile);
-        setTokens(deriveTokensFromProfile(mlJson.profile));
-      } catch (err) {
-        console.error("[AURA] Extension path failed, falling back to guest", err);
-        setError("Failed to load personalization from extension");
+      if (!installed) {
         await loadProfile("guest");
-      } finally {
-        setLoading(false);
+        return;
       }
-    },
-    [loadProfile]
-  );
+
+      const extUserId = await bridge.getUserId();
+      const mlJson = await bridge.getMlProfile(extUserId);
+
+      applyMlJson(mlJson, setUserId as any, setSource, setProfile as any, setTokens);
+    } catch (err) {
+      console.error("[AURA] Extension path failed, falling back to guest", err);
+      setError("Failed to load personalization from extension");
+      await loadProfile("guest");
+    } finally {
+      setLoading(false);
+    }
+  }, [loadProfile]);
+
+  // -------------------------
+  // ✅ NEW: Live updates listener (push)
+  // -------------------------
+  useEffect(() => {
+    if (simulateExtensionInstalled) return; // in simulation, extension not driving changes
+
+    function onMessage(ev: MessageEvent) {
+      const d: any = ev && (ev as any).data ? (ev as any).data : null;
+      if (!d || d.__aura !== true) return;
+
+      // Extension broadcasts this when user switches
+      if (d.type === "AURA_EXT_PROFILE_CHANGED") {
+        const mlJson = d.payload as AuraMlResponse;
+        if (!mlJson || !mlJson.profile || !mlJson.metadata) return;
+
+        // avoid applying same update twice
+        const sessionKey = String(mlJson.session_id || "");
+        if (sessionKey && lastAppliedSessionRef.current === sessionKey) return;
+        lastAppliedSessionRef.current = sessionKey;
+
+        applyMlJson(mlJson, setUserId as any, setSource, setProfile as any, setTokens);
+      }
+    }
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [simulateExtensionInstalled]);
 
   // --- Initialization ---
   useEffect(() => {
-    // KEEP OLD SIMULATION WORKING EXACTLY
+    // KEEP OLD SIMULATION WORKING
     if (simulateExtensionInstalled) {
       setIsExtensionInstalled(true);
       const mockUserId = initialUserId ?? "u_001";
@@ -198,7 +234,7 @@ export function AdaptiveProvider({
       return;
     }
 
-    //  FUTURE path: real extension
+    // REAL extension mode
     loadFromExtension();
   }, [simulateExtensionInstalled, initialUserId, loadProfile, loadFromExtension]);
 
@@ -211,7 +247,6 @@ export function AdaptiveProvider({
     error,
     isExtensionInstalled,
 
-    // must return Promise<void> (your types.ts expects Promise)
     reload: async () => {
       if (simulateExtensionInstalled) {
         await loadProfile(userId);
