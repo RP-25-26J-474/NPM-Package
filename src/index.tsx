@@ -11,6 +11,8 @@ export { AdaptiveSelect } from "./components/AdaptiveSelect";
 export { AdaptiveTextarea } from "./components/AdaptiveTextarea";
 export { AdaptiveMenu } from "./components/AdaptiveMenu";
 export { AdaptiveDropdown } from "./components/AdaptiveDropdown";
+export { AdaptiveList } from "./components/AdaptiveList";
+export { AdaptivePagination } from "./components/AdaptivePagination";
 
 export type {
   AuraProfileV2,
