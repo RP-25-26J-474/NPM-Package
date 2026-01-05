@@ -123,6 +123,8 @@ export function AdaptiveInput(props: AdaptiveInputProps) {
 
   const borderColor = error ? colors.accent : colors.border;
   const focusColor = error ? colors.accent : colors.primary;
+  const secondaryTextColor =
+    flags.highContrast ? colors.text : colors.secondary ? colors.secondary : colors.text;
 
   const inputStyle: AnyStyle = {
     width: fullWidth ? "100%" : undefined,
@@ -195,7 +197,7 @@ export function AdaptiveInput(props: AdaptiveInputProps) {
   const helperStyle: AnyStyle = {
     fontSize: typography.caption,
     lineHeight: typography.lineHeight,
-    color: colors.text,
+    color: secondaryTextColor,
     marginTop: Math.max(4, Math.round(spacing.gapY * 0.4)),
   };
 

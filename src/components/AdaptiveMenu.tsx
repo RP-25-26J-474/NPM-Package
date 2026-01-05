@@ -197,13 +197,19 @@ export function AdaptiveMenu(props: AdaptiveMenuProps) {
     const selected = item.selected === true;
     const isLink = typeof item.href === "string" && item.href.length > 0;
 
+    const itemTextColor =
+      selected && !flags.highContrast ? colors.onPrimary : colors.text;
+
     const itemStyle: AnyStyle = {
       minHeight: itemHeight,
       padding: padY.toString() + "px " + padX.toString() + "px",
       borderRadius: 10,
-      border: "1px solid " + (selected ? colors.primary : colors.border),
-      backgroundColor: selected ? colors.background : colors.surface,
-      color: colors.text,
+      borderWidth: 1,
+      borderStyle: "solid",
+      borderColor: selected ? colors.primary : colors.border,
+      backgroundColor:
+        selected && !flags.highContrast ? colors.primary : colors.surface,
+      color: itemTextColor,
       textAlign: "left",
       display: "flex",
       flexDirection: "column",
@@ -231,13 +237,49 @@ export function AdaptiveMenu(props: AdaptiveMenuProps) {
       if (props.onItemSelect) props.onItemSelect(item);
     };
 
+    const labelStyleLocal: AnyStyle = {};
+    const labelKeys = Object.keys(labelStyle);
+    for (let i = 0; i < labelKeys.length; i++) {
+      const key = labelKeys[i];
+      labelStyleLocal[key] = labelStyle[key];
+    }
+    if (selected && !flags.highContrast) {
+      labelStyleLocal.color = colors.onPrimary;
+    }
+
+    const descriptionStyleLocal: AnyStyle = {};
+    const descKeys = Object.keys(descriptionStyle);
+    for (let i = 0; i < descKeys.length; i++) {
+      const key = descKeys[i];
+      descriptionStyleLocal[key] = descriptionStyle[key];
+    }
+    if (selected && !flags.highContrast) {
+      descriptionStyleLocal.color = colors.onPrimary;
+      descriptionStyleLocal.opacity = 0.9;
+    }
+
+    const exampleStyleLocal: AnyStyle = {};
+    const exampleKeys = Object.keys(exampleStyle);
+    for (let i = 0; i < exampleKeys.length; i++) {
+      const key = exampleKeys[i];
+      exampleStyleLocal[key] = exampleStyle[key];
+    }
+    if (selected && !flags.highContrast) {
+      exampleStyleLocal.color = colors.onPrimary;
+      exampleStyleLocal.opacity = 0.85;
+    }
+
     const content = [
-      React.createElement("div", { style: labelStyle, key: "label" }, item.label),
+      React.createElement("div", { style: labelStyleLocal, key: "label" }, item.label),
     ];
 
     if (showDescriptions && item.description) {
       content.push(
-        React.createElement("div", { style: descriptionStyle, key: "desc" }, item.description)
+        React.createElement(
+          "div",
+          { style: descriptionStyleLocal, key: "desc" },
+          item.description
+        )
       );
     }
 
@@ -245,7 +287,7 @@ export function AdaptiveMenu(props: AdaptiveMenuProps) {
       content.push(
         React.createElement(
           "div",
-          { style: exampleStyle, key: "example" },
+          { style: exampleStyleLocal, key: "example" },
           "Example: " + item.example
         )
       );

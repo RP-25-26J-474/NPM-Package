@@ -129,6 +129,8 @@ export function AdaptiveTextarea(props: AdaptiveTextareaProps) {
 
   const disabled = props.disabled === true;
   const readOnly = props.readOnly === true;
+  const secondaryTextColor =
+    flags.highContrast ? colors.text : colors.secondary ? colors.secondary : colors.text;
 
   const classNameProp = props.className === undefined ? "" : props.className;
   const textareaClassNameProp =
@@ -216,7 +218,7 @@ export function AdaptiveTextarea(props: AdaptiveTextareaProps) {
   const helperStyle: AnyStyle = {
     fontSize: typography.caption,
     lineHeight: typography.lineHeight,
-    color: colors.text,
+    color: secondaryTextColor,
     marginTop: Math.max(4, Math.round(spacing.gapY * 0.4)),
   };
 

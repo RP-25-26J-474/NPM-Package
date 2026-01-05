@@ -78,6 +78,8 @@ export function AdaptiveSwitch({
   const descPx = Math.max(12, Math.round(typography.basePx * 0.88));
 
   const borderColor = flags.highContrast ? colors.text : colors.border;
+  const secondaryTextColor =
+    flags.highContrast ? colors.text : colors.secondary ? colors.secondary : colors.text;
 
   const trackOn = colors.primary;
   const trackOff = colors.surface;
@@ -126,7 +128,7 @@ export function AdaptiveSwitch({
   const descStyle: AnyStyle = {
     fontSize: descPx.toString() + "px",
     lineHeight: typography.lineHeight,
-    color: flags.highContrast ? colors.text : "#6b7280",
+    color: secondaryTextColor,
     wordBreak: "break-word",
   };
 
@@ -188,7 +190,7 @@ export function AdaptiveSwitch({
     fontSize: Math.max(12, Math.round(typography.basePx * 0.8)).toString() + "px",
     lineHeight: typography.lineHeight,
     fontWeight: 700,
-    color: colors.text,
+    color: isOn && !flags.highContrast ? colors.primary : colors.text,
     textTransform: "uppercase",
     opacity: disabled ? 0.6 : 0.85,
   };

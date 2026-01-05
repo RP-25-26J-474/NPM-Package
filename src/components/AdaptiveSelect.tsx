@@ -145,8 +145,10 @@ export function AdaptiveSelect(props: AdaptiveSelectProps) {
     placeholder !== undefined &&
     (selectedValue === undefined || selectedValue === null || selectedValue === "");
 
-  const placeholderColor =
-    flags.theme === "dark" && !flags.highContrast ? "#9ca3af" : "#6b7280";
+  const secondaryTextColor =
+    flags.highContrast ? colors.text : colors.secondary ? colors.secondary : colors.text;
+
+  const placeholderColor = secondaryTextColor;
 
   const borderColor = error ? colors.accent : colors.border;
   const focusColor = error ? colors.accent : colors.primary;
@@ -212,7 +214,7 @@ export function AdaptiveSelect(props: AdaptiveSelectProps) {
   const helperStyle: AnyStyle = {
     fontSize: typography.caption,
     lineHeight: typography.lineHeight,
-    color: colors.text,
+    color: secondaryTextColor,
     marginTop: Math.max(4, Math.round(spacing.gapY * 0.4)),
   };
 
