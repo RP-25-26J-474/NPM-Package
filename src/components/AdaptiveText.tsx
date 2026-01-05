@@ -190,12 +190,24 @@ export function AdaptiveText(props: AdaptiveTextProps) {
   if ((props as any).role !== undefined) elementProps.role = (props as any).role;
   
   // NEW: Track clicks on text (e.g. headers)
-  const { behaviorTracker } = useAdaptive();
-  const idToUse = (props as any).id || (props as any)["data-testid"];
+  const { behaviorTracker, openComponentFeedback } = useAdaptive();
+  const idToUse = (props as any).id || (props as any)["data-testid"] || "text-" + Math.random().toString(36).substr(2, 5);
   
   // Intercept click to track it
   const originalOnClick = (props as any).onClick;
   elementProps.onClick = (e: any) => {
+      // ALT + Click for Feedback
+      if (e.altKey && openComponentFeedback) {
+          e.preventDefault();
+          e.stopPropagation();
+          openComponentFeedback(idToUse, 'text', { 
+            variant, 
+            text: typeof children === 'string' ? children : 'nested-text',
+            computedSize: parseInt(textStyle.fontSize as string) || 16 
+          });
+          return;
+      }
+
       if (behaviorTracker?.trackInteraction && idToUse) {
           behaviorTracker.trackInteraction(idToUse, 'click', { variant });
       } else if (behaviorTracker?.trackInteraction) {

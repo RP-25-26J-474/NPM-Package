@@ -11,6 +11,7 @@ interface MLFeedbackPromptProps {
   mlConfidence: number;
   source: 'ml' | 'manual' | 'trial';
   apiEndpoint: string;
+  onFeedback?: (sentiment: 'positive' | 'negative' | 'neutral') => void;
   onClose?: () => void;
   position?: 'top-right' | 'bottom-right' | 'bottom-left' | 'top-left';
 }
@@ -24,6 +25,7 @@ export function MLFeedbackPrompt({
   source,
   apiEndpoint,
   onClose,
+  onFeedback,
   position = 'bottom-right'
 }: MLFeedbackPromptProps): React.ReactElement | null {
   const [isVisible, setIsVisible] = useState(true);
@@ -52,9 +54,11 @@ export function MLFeedbackPrompt({
     try {
       console.log('[AURA] 🎯 Sending feedback to RL model:', feedback);
 
+      // Use keepalive to ensure request completes even if component unmounts
       const response = await fetch(`${apiEndpoint}/rl-feedback/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        keepalive: true, 
         body: JSON.stringify({
           userId,
           settingKey,
@@ -76,17 +80,18 @@ export function MLFeedbackPrompt({
       console.log('   Reward:', data.reward);
       console.log('   Q-value:', data.rlUpdate?.qValue);
 
-      // Show success feedback
-      setTimeout(() => {
-        handleClose();
-      }, 1000);
-
     } catch (error) {
       console.error('[AURA] ❌ Error sending feedback:', error);
-      // Still close even if error
-      setTimeout(() => {
-        handleClose();
-      }, 1500);
+    } finally {
+      // Notify parent (which will likely unmount this component)
+      if (onFeedback) {
+        onFeedback(feedback);
+      } else {
+        // Fallback internal close if no parent handler
+        setTimeout(() => {
+            handleClose();
+        }, 500);
+      }
     }
   };
 
@@ -142,7 +147,7 @@ export function MLFeedbackPrompt({
           fontWeight: 'bold',
           cursor: isSending ? 'not-allowed' : 'pointer'
         }
-      }, '👍 Better - Keep It!'),
+      }, '👍 Better - Save It!'),
       React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } },
         React.createElement('button', {
           onClick: () => sendFeedback('neutral'),

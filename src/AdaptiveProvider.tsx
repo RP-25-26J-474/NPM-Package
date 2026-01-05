@@ -30,6 +30,7 @@ import { useTrialManager } from "./hooks/useTrialManager";
 import { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
 import { useSettingsSync } from "./hooks/useSettingsSync";
 import { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
+import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components/ComponentFeedbackModal";
 // NOTE: AdaptiveSettingsChangePrompt temporarily disabled due to TypeScript build issues
 // import { AdaptiveSettingsChangePrompt } from "./components/AdaptiveSettingsChangePrompt";
 
@@ -156,6 +157,13 @@ export function AdaptiveProvider({
   const [changedSettingKey, setChangedSettingKey] = useState<string>('');
   const [settingOldValue, setSettingOldValue] = useState<any>(null);
 
+  // Active Component Feedback State
+  const [activeFeedbackComponent, setActiveFeedbackComponent] = useState<{
+    id: string;
+    type: ComponentFeedbackType;
+    props: any;
+  } | null>(null);
+
   // NEW: Trial manager for trial-based mode
   const {
     activeTrial,
@@ -191,7 +199,7 @@ export function AdaptiveProvider({
         const val = typeof newSettings.targetSize === 'string' ? parseInt(newSettings.targetSize, 10) : newSettings.targetSize;
         if (!isNaN(val)) newTargetSize = val;
     }
-    if (Math.abs(newTargetSize - baseProfile.target_size) > 4) return true;
+    if (Math.abs(newTargetSize - baseProfile.target_size) > 2) return true;
 
     // Check Spacing
     const currentSpacing = newSettings.spacing || baseProfile.element_spacing;
@@ -258,9 +266,27 @@ export function AdaptiveProvider({
     console.log('[AURA] ✅ Tokens updated:', newTokens);
     console.log('[AURA] 🎯 UI should now reflect: theme=%s, fontSize=%s, colors=%s', 
       updatedProfile.theme, updatedProfile.font_size, updatedProfile.primary_color);
+
+    // INJECT CSS VARIABLES FOR REAL-TIME UPDATES
+    if (typeof document !== 'undefined') {
+        const root = document.documentElement;
+        // Colors
+        Object.entries(newTokens.colors).forEach(([key, value]) => {
+            root.style.setProperty(`--aura-${key}`, value as string);
+        });
+        // Typography
+        root.style.setProperty('--aura-base-size', newTokens.typography.baseSize);
+        root.style.setProperty('--aura-line-height', String(newTokens.typography.lineHeight));
+        // Spacing
+        root.style.setProperty('--aura-spacing-base', `${newTokens.spacing.base}px`);
+        // Controls
+        root.style.setProperty('--aura-min-target-size', `${newTokens.controls.minTargetSize}px`);
+        
+        console.log('[AURA] 💉 Injected CSS variables to :root');
+    }
     
     // Check for significant deviation
-    const isSignificant = isSignificantDeviation(settings, initialProfile);
+    const isSignificant = isSignificantDeviation(settings, currentProfile || initialProfile);
     console.log(`[AURA] 📏 Significant deviation check: ${isSignificant} (Source: ${source})`);
 
     // Store for feedback prompt
@@ -443,9 +469,62 @@ export function AdaptiveProvider({
   // NEW: Handle settings change feedback
   const handleSettingsFeedback = useCallback(
     async (sentiment: 'positive' | 'negative' | 'neutral', comment?: string) => {
+      // Hide prompt immediately
+      setShowSettingsPrompt(false);
+
       if (!apiEndpoint || !userId) {
         console.warn('[AURA] Cannot submit feedback: missing apiEndpoint or userId');
         return;
+      }
+
+      // 1. Handle REVERT if negative
+      if (sentiment === 'negative' && changedSettingKey && settingOldValue !== undefined) {
+         console.log(`[AURA] 🔙 Reverting ${changedSettingKey} to ${settingOldValue}`);
+         
+         // A. Local Revert
+         const revertedSettings = { ...latestSettings, [changedSettingKey]: settingOldValue };
+         
+         // Using 'revert' source avoids triggering another prompt
+         handleSettingsUpdate(revertedSettings, 'revert');
+
+         // B. Persist Revert to Backend
+         try {
+            await fetch(`${apiEndpoint}/users/${userId}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    settings: { [changedSettingKey]: settingOldValue },
+                    source: 'user_revert'
+                })
+            });
+         } catch (e) {
+             console.error('[AURA] Failed to save revert:', e);
+         }
+      }
+
+      // 2. Handle COMMIT if positive (User accepts the change)
+      if (sentiment === 'positive' && latestSettings) {
+          console.log(`[AURA] 🔒 Committing settings (User liked them)`);
+          
+          try {
+             // We save the ENTIRE latestSettings which is the delta object (e.g. { targetSize: 32 })
+             // This avoids key mismatch issues (snake_case vs camelCase)
+             const settingsToSave = latestSettings;
+ 
+              // USE MANUAL SETTINGS ENDPOINT TO ENSURE PRECEDENCE
+              // This updates both ManualSettings collection and User.currentSettings
+              await fetch(`${apiEndpoint}/manual-settings/apply`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                     userId,
+                     settings: settingsToSave
+                 })
+             });
+            console.log('[AURA] ✅ Settings committed to DB');
+          } catch (e) {
+             console.error('[AURA] Failed to commit settings:', e);
+          }
       }
 
       try {
@@ -497,8 +576,83 @@ export function AdaptiveProvider({
         console.error('[AURA] Error submitting settings feedback:', error);
       }
     },
-    [apiEndpoint, userId, latestSettings, settingsSource]
+    [apiEndpoint, userId, latestSettings, settingsSource, changedSettingKey, settingOldValue, handleSettingsUpdate]
   );
+
+  const openComponentFeedback = useCallback((componentId: string, type: ComponentFeedbackType, currentProps: any) => {
+    console.log('[AURA] 🟢 Opening feedback for component:', componentId);
+    setActiveFeedbackComponent({ id: componentId, type, props: currentProps });
+  }, []);
+
+  const handleComponentFeedbackSubmit = useCallback(async (data: { issue: string; severity: number; comment?: string }) => {
+    if (!activeFeedbackComponent || !apiEndpoint || !userId) return;
+
+    try {
+      console.log('[AURA] 🚀 Submitting component feedback:', data);
+      
+      const payload = {
+        userId,
+        componentId: activeFeedbackComponent.id,
+        componentType: activeFeedbackComponent.type,
+        issue: data.issue,
+        severity: data.severity,
+        comment: data.comment,
+        context: {
+          currentProfile: profile,
+          componentProps: activeFeedbackComponent.props,
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      // Send to backend (using rl-feedback endpoint as generic handler)
+      const response = await fetch(`${apiEndpoint}/rl-feedback/component-issue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await response.json();
+      console.log('[AURA] ✅ Component feedback submitted', result);
+
+      // Check for immediate fix
+      if (result.success && result.nextSuggestion) {
+          const suggestion = result.nextSuggestion;
+          console.log(`[AURA] 🛠️ Applying fix: ${suggestion.parameter} -> ${suggestion.suggestedValue}`);
+
+          // Map RL param to Profile param
+           const paramMap: Record<string, string> = {
+            'fontSize': 'font_size',
+            'targetSize': 'target_size',
+            'contrastMode': 'contrast_mode',
+            'elementSpacing': 'element_spacing', // Check mapping in utils
+            'lineHeight': 'line_height'
+          };
+          
+          const profileKey = paramMap[suggestion.parameter] || suggestion.parameter;
+
+          // Create partial settings object
+          // NOTE: We need to use the format expected by `handleSettingsUpdate` (camelCase usually)
+          // `handleSettingsUpdate` expects keys like `fontSize`, `targetSize` etc. derived from dashboard.
+          // Let's use the raw parameter name if it matches, or map to settings key.
+          
+          const settingsPayload = {
+              [suggestion.parameter]: suggestion.suggestedValue
+          };
+
+          // Apply update via our handler
+          // PASSING 'ml' AS SOURCE IS CRITICAL TO TRIGGER THE PROMPT
+          handleSettingsUpdate(settingsPayload, 'ml', suggestion.confidence);
+          
+          // Optional: Show a toast? 
+          // The MLFeedbackPrompt should appear due to 'ml' source + change detection.
+      }
+
+    } catch (err) {
+      console.error('[AURA] ❌ Failed to submit component feedback', err);
+    }
+  }, [activeFeedbackComponent, apiEndpoint, userId, profile]);
 
   // --- Initialization ---
   useEffect(() => {
@@ -572,6 +726,7 @@ export function AdaptiveProvider({
       }
       await loadFromExtension();
     },
+    openComponentFeedback,
   };
 
   return React.createElement(
@@ -607,8 +762,18 @@ export function AdaptiveProvider({
         source: settingsSource,
         apiEndpoint: apiEndpoint,
         onClose: () => setShowSettingsPrompt(false),
+        onFeedback: handleSettingsFeedback,
         position: "bottom-right"
-      })
+      }),
+    
+    // Active Component Feedback Modal
+    activeFeedbackComponent && React.createElement(ComponentFeedbackModal, {
+      componentId: activeFeedbackComponent.id,
+      componentType: activeFeedbackComponent.type,
+      currentProps: activeFeedbackComponent.props,
+      onClose: () => setActiveFeedbackComponent(null),
+      onSubmit: handleComponentFeedbackSubmit
+    })
   );
 }
 

@@ -16,7 +16,7 @@ export interface AdaptiveButtonProps
 }
 
 export function AdaptiveButton(props: AdaptiveButtonProps) {
-  const { tokens, behaviorTracker } = useAdaptive();
+  const { tokens, behaviorTracker, openComponentFeedback } = useAdaptive();
   const { colors, spacing, controls, typography, flags } = tokens;
 
   const [hovered, setHovered] = useState(false);
@@ -65,6 +65,18 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   };
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+      // NEW: Active Feedback Trigger (Alt + Click)
+      if (event.altKey && openComponentFeedback) {
+        event.preventDefault();
+        event.stopPropagation();
+        openComponentFeedback(idProp, 'button', { 
+            variant, 
+            text: typeof children === 'string' ? children : 'nested-content',
+            computedSize: controls.minTargetSize
+        });
+        return;
+      }
+
       if (behaviorTracker?.trackInteraction) {
           behaviorTracker.trackInteraction(idProp, 'click', { 
             variant, 

@@ -114,6 +114,7 @@ export interface AdaptiveContextValue {
   apiEndpoint?: string; // Add this
   submitFeedback?: (feedback: AdaptiveFeedbackPayload) => Promise<{ success: boolean }>;
   reload: () => Promise<void>;
+  openComponentFeedback?: (componentId: string, type: 'button' | 'text' | 'container' | 'input', currentProps: any) => void;
 }
 
 export interface AdaptiveProviderProps {
