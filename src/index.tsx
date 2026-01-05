@@ -14,6 +14,7 @@ export { AdaptiveDropdown } from "./components/AdaptiveDropdown";
 export { AdaptiveList } from "./components/AdaptiveList";
 export { AdaptivePagination } from "./components/AdaptivePagination";
 export { AdaptiveAlert } from "./components/AdaptiveAlert";
+export { AdaptiveTooltip } from "./components/AdaptiveTooltip";
 
 export type {
   AuraProfileV2,

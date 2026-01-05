@@ -11,7 +11,8 @@
     "rootDir": "src",
     "skipLibCheck": true,
     "importHelpers": true,  // Enables tslib for helpers like spread
-    "lib": ["es2017", "DOM"] 
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "moduleResolution": "Bundler"
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
