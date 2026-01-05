@@ -13,6 +13,7 @@ export { AdaptiveMenu } from "./components/AdaptiveMenu";
 export { AdaptiveDropdown } from "./components/AdaptiveDropdown";
 export { AdaptiveList } from "./components/AdaptiveList";
 export { AdaptivePagination } from "./components/AdaptivePagination";
+export { AdaptiveAlert } from "./components/AdaptiveAlert";
 
 export type {
   AuraProfileV2,
