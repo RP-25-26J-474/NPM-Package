@@ -15,6 +15,7 @@ export { AdaptiveList } from "./components/AdaptiveList";
 export { AdaptivePagination } from "./components/AdaptivePagination";
 export { AdaptiveAlert } from "./components/AdaptiveAlert";
 export { AdaptiveTooltip } from "./components/AdaptiveTooltip";
+export { AdaptiveDrawer } from "./components/AdaptiveDrawer";
 
 export type {
   AuraProfileV2,
