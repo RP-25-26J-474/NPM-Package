@@ -17,6 +17,7 @@ export { AdaptiveAlert } from "./components/AdaptiveAlert";
 export { AdaptiveTooltip } from "./components/AdaptiveTooltip";
 export { AdaptiveDrawer } from "./components/AdaptiveDrawer";
 export { AdaptiveCheckbox } from "./components/AdaptiveCheckbox";
+export { AdaptiveSwitch } from "./components/AdaptiveSwitch";
 
 export type {
   AuraProfileV2,
