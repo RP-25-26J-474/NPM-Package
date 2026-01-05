@@ -25,15 +25,24 @@ export function ComponentFeedbackModal({
     const options = [];
     
     // Common visual checks (simplified logic)
-    const isSmall = props?.computedSize && props.computedSize < 40;
-    const isLarge = props?.computedSize && props.computedSize > 50;
+    let size = props?.computedSize;
+    if (typeof size === 'string') {
+        size = parseFloat(size);
+    }
+    
+    // Thresholds
+    const isSmall = size && size < 44; // Standard touch target is 44px
+    const isLarge = size && size > 56;
 
     switch (type) {
       case 'button':
         if (isLarge) {
             options.push({ value: 'too_large', label: 'Button is too large' });
-        } else {
-            options.push({ value: 'too_small', label: 'Too small to click' });
+        }
+        
+        // Show "Too small" unless it is explicitly Large (>56px)
+        if (!isLarge) {
+             options.push({ value: 'too_small', label: 'Too small to click' });
         }
         
         options.push(
