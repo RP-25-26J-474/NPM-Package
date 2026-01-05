@@ -126,9 +126,18 @@ export function AdaptiveInput(props: AdaptiveInputProps) {
 
   const inputStyle: AnyStyle = {
     width: fullWidth ? "100%" : undefined,
-    padding: Math.max(6, spacing.padY).toString() + "px " + Math.max(10, spacing.padX).toString() + "px",
+    padding:
+      Math.max(6, spacing.padY).toString() +
+      "px " +
+      Math.max(10, spacing.padX).toString() +
+      "px",
     borderRadius: 10,
-    border: "1px solid " + borderColor,
+
+    // ✅ REQUIRED FIX: don't use "border" shorthand if you later set borderColor
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: borderColor,
+
     backgroundColor: disabled ? colors.surface : colors.background,
     color: colors.text,
     fontSize: typography.body,
@@ -149,7 +158,7 @@ export function AdaptiveInput(props: AdaptiveInputProps) {
   }
 
   if (focused && !disabled) {
-    inputStyle.borderColor = focusColor;
+    inputStyle.borderColor = focusColor; // ✅ ok now (no shorthand conflict)
     inputStyle.boxShadow = "0 0 0 3px " + focusColor;
   }
 
