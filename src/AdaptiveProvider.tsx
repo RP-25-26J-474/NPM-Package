@@ -222,10 +222,10 @@ export function AdaptiveProvider({
       primaryChangedKey = 'theme';
       oldVal = currentProfile?.theme;
     } else if (settings.fontSize && settings.fontSize !== currentProfile?.font_size) {
-      primaryChangedKey = 'font_size';
+      primaryChangedKey = 'fontSize'; // WAS: 'font_size'
       oldVal = currentProfile?.font_size;
     } else if (settings.targetSize && settings.targetSize !== currentProfile?.target_size) {
-      primaryChangedKey = 'target_size';
+      primaryChangedKey = 'targetSize'; // WAS: 'target_size'
       oldVal = currentProfile?.target_size;
     }
     
