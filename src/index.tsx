@@ -1,5 +1,6 @@
 // src/index.tsx
 export { AdaptiveProvider, useAdaptive } from "./AdaptiveProvider";
+export { predictFallbackTokens } from "./fallback-ml/predict";
 export { AdaptiveButton } from "./components/AdaptiveButton";
 export { AdaptiveText } from "./components/AdaptiveText";
 export { AdaptiveTable } from "./components/AdaptiveTable";

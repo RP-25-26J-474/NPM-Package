@@ -10,8 +10,8 @@ import type {
 // Minimal MOCK (dev-only fallback)
 // -------------------------------
 export const DEFAULT_GUEST_PROFILE: AuraProfileV2 = {
-  font_size: 16,
-  line_height: 1.45,
+  font_size: 10,
+  line_height: 1.15,
   contrast_mode: "normal",
 
   primary_color: "#2563eb",
@@ -31,10 +31,49 @@ export const DEFAULT_GUEST_PROFILE: AuraProfileV2 = {
   element_padding_y: 10,
 
   reduced_motion: false,
-  target_size: 24,
+  target_size: 14,
   tooltip_assist: false,
   layout_simplification: false,
 };
+
+function clamp(n: number, min: number, max: number): number {
+  if (Number.isNaN(n)) return min;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
+}
+
+export function buildFallbackProfileFromPredictions(pred: {
+  font_size: number;
+  line_height: number;
+  target_size: number;
+}): AuraProfileV2 {
+  // Start from safe defaults
+  const base = DEFAULT_GUEST_PROFILE;
+
+  const font_size = clamp(pred.font_size, 14, 22);
+  const line_height = clamp(pred.line_height, 1.4, 1.6);
+  const target_size = clamp(pred.target_size, 24, 56);
+
+  // OPTIONAL but recommended:
+  // derive spacing/padding from predicted size so UI feels consistent
+  const element_spacing_x = clamp(Math.round(font_size * 0.6), 6, 18);
+  const element_spacing_y = clamp(Math.round(font_size * 0.5), 4, 16);
+
+  const element_padding_x = clamp(Math.round(target_size * 0.25), 8, 18);
+  const element_padding_y = clamp(Math.round(target_size * 0.22), 8, 18);
+
+  return {
+    ...base,
+    font_size,
+    line_height,
+    target_size,
+    element_spacing_x,
+    element_spacing_y,
+    element_padding_x,
+    element_padding_y,
+  };
+}
 
 export const DEFAULT_GUEST_ENVELOPE: AuraMlEnvelopeV2 = {
   profile: {
@@ -54,13 +93,6 @@ export const DEFAULT_GUEST_ENVELOPE: AuraMlEnvelopeV2 = {
 // -------------------------------
 // Profile -> Tokens mapping (V2)
 // -------------------------------
-
-function clamp(n: number, min: number, max: number): number {
-  if (Number.isNaN(n)) return min;
-  if (n < min) return min;
-  if (n > max) return max;
-  return n;
-}
 
 const getBaseBackgroundAndText = (
   theme: AuraThemeMode,

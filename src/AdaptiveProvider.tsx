@@ -7,6 +7,10 @@ import React, {
   useCallback,
 } from "react";
 
+import { predictFallbackTokens } from "./fallback-ml/predict";
+import { readFallbackCache, writeFallbackCache } from "./fallback-ml/cache";
+import { buildFallbackProfileFromPredictions } from "./utils";
+
 import type {
   AdaptiveContextValue,
   AdaptiveProviderProps,
@@ -106,6 +110,26 @@ function applyEnvelope(
   setTokens(deriveTokensFromProfile(inner.profile));
 }
 
+async function loadFallback(
+  setUserId: (v: string) => void,
+  setSource: (v: AuraSource) => void,
+  setProfile: (v: AuraProfileV2) => void,
+  setTokens: (v: AuraTokens) => void
+) {
+  // 1) cache first
+  const cached = readFallbackCache();
+  const pred = cached ?? predictFallbackTokens();
+
+  if (!cached) writeFallbackCache(pred);
+
+  const fullProfile = buildFallbackProfileFromPredictions(pred);
+
+  setUserId("guest");
+  setSource("fallback");
+  setProfile(fullProfile);
+  setTokens(deriveTokensFromProfile(fullProfile));
+}
+
 export function AdaptiveProvider({
   children,
   userId: initialUserId,
@@ -156,13 +180,9 @@ export function AdaptiveProvider({
       setIsExtensionInstalled(installed);
 
       if (!installed) {
-        // no extension -> fallback to guest tokens
-        setSource("fallback");
-        setUserId("guest");
-        setProfile(initialProfile);
-        setTokens(initialTokens);
+        await loadFallback(setUserId, setSource, setProfile, setTokens);
         return;
-      }
+      }      
 
       const extUserId = await bridge.getUserId();
       const env = await bridge.getMlEnvelope(extUserId);
@@ -170,10 +190,7 @@ export function AdaptiveProvider({
     } catch (err) {
       console.error("[AURA] Extension path failed", err);
       setError("Failed to load personalization from extension");
-      setSource("fallback");
-      setUserId("guest");
-      setProfile(initialProfile);
-      setTokens(initialTokens);
+      await loadFallback(setUserId, setSource, setProfile, setTokens);
     } finally {
       setLoading(false);
     }
