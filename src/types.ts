@@ -138,6 +138,7 @@ export interface AdaptiveContextValue {
   loading: boolean;
   error?: string;
   isExtensionInstalled: boolean;
+  isExtensionLoggedIn?: boolean;
 
   /** Re-fetch from extension (or mocks in dev) */
   reload: () => Promise<void>;
@@ -158,6 +159,20 @@ export interface AdaptiveProviderProps {
    * - false => use real extension bridge
    */
   simulateExtensionInstalled?: boolean;
+
+  /** Optional: show a CTA prompt when the extension is missing. */
+  showExtensionPrompt?: boolean;
+  extensionPromptMessage?: string;
+  extensionPromptCtaLabel?: string;
+  extensionPromptCtaHref?: string;
+  onExtensionPromptCtaClick?: () => void;
+  extensionPromptStyle?: CSSProperties;
+  extensionPromptMessageStyle?: CSSProperties;
+  extensionPromptCtaStyle?: CSSProperties;
+  extensionPromptDismissLabel?: string;
+  extensionPromptDismissStyle?: CSSProperties;
+  extensionPromptStorageKey?: string;
+  onExtensionPromptDismiss?: () => void;
 }
 
 export interface AdaptiveComponentProps {
