@@ -28,6 +28,7 @@ import {
 import { BehaviorTracker } from "./BehaviorTracker";
 import { useTrialManager } from "./hooks/useTrialManager";
 import { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
+import { AdaptiveTempUserPrompt } from "./components/AdaptiveTempUserPrompt";
 import { useSettingsSync } from "./hooks/useSettingsSync";
 import { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
 import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components/ComponentFeedbackModal";
@@ -773,6 +774,19 @@ export function AdaptiveProvider({
       currentProps: activeFeedbackComponent.props,
       onClose: () => setActiveFeedbackComponent(null),
       onSubmit: handleComponentFeedbackSubmit
+    }),
+
+    // Temp User / Bot Protection Prompt
+    behaviorTracker && apiEndpoint && userId && React.createElement(AdaptiveTempUserPrompt, {
+        userId,
+        apiEndpoint,
+        tracker: behaviorTracker,
+        enabled: true,
+        onResetConfirmed: () => {
+             console.log('[AURA] 🛡️ Temp user reset confirmed.');
+             // Reload or re-fetch profile would happen here
+             window.location.reload();
+        }
     })
   );
 }

@@ -12,6 +12,7 @@ export { AdaptiveFeedbackPrompt } from "./components/AdaptiveFeedbackPrompt";
 export { AdaptiveChangeConfirmation } from "./components/AdaptiveChangeConfirmation";
 export { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
 export { AdaptiveDifficultyDetector } from "./components/AdaptiveDifficultyDetector";
+export { AdaptiveTempUserPrompt } from "./components/AdaptiveTempUserPrompt";
 // NOTE: AdaptiveSettingsChangePrompt temporarily disabled due to TypeScript build issues
 // export { AdaptiveSettingsChangePrompt } from "./components/AdaptiveSettingsChangePrompt";
 export { BehaviorTracker } from "./BehaviorTracker";

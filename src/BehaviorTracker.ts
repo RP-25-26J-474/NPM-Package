@@ -565,6 +565,29 @@ export class BehaviorTracker {
   }
 
   /**
+   * Get anomaly metrics for detection
+   */
+  public getAnomalyMetrics() {
+    return {
+      clickCount: this.metrics.clickCount || 0,
+      misclickCount: this.metrics.misclickCount || 0,
+      rageClickCount: this.metrics.rageClickCount || 0,
+      avgTimeToClick: this.metrics.avgTimeToClick || 0,
+      errorCount: this.metrics.errorCount || 0,
+      duration: Date.now() - this.sessionStart,
+      interactionCount: this.metrics.interactionCount
+    };
+  }
+
+  /**
+   * Get recent interactions for advanced analysis
+   */
+  public getRecentInteractions() {
+      // limited to last 50 for payload size
+      return this.clickHistory.slice(-50); 
+  }
+
+  /**
    * Clean up event listeners
    */
   public destroy() {
