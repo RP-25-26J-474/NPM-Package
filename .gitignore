@@ -62,3 +62,6 @@ dist/**/*.d.ts
 
 # Output maps
 *.map
+
+# AI / agent config
+agent.md
