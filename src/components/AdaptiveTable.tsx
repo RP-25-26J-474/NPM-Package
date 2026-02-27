@@ -168,12 +168,19 @@ export function AdaptiveTable<T>(props: AdaptiveTableProps<T>) {
     const density = normalizeDensity(props.density);
     // derive from ML spacing if density not explicitly set
     // compact -> smaller; spacious -> bigger
-    let basePad = spacing.base;
-    if (density === "compact") basePad = Math.max(4, Math.round(spacing.base * 0.75));
-    if (density === "spacious") basePad = Math.max(10, Math.round(spacing.base * 1.5));
+    let basePadY = spacing.padY;
+    let basePadX = spacing.padX;
+    if (density === "compact") {
+        basePadY = Math.max(4, Math.round(basePadY * 0.75));
+        basePadX = Math.max(6, Math.round(basePadX * 0.75));
+    }
+    if (density === "spacious") {
+        basePadY = Math.max(10, Math.round(basePadY * 1.4));
+        basePadX = Math.max(12, Math.round(basePadX * 1.4));
+    }
 
-    const cellPadY = Math.max(4, Math.round(basePad * 0.9));
-    const cellPadX = Math.max(6, Math.round(basePad * 1.2));
+    const cellPadY = Math.max(4, Math.round(basePadY * 0.9));
+    const cellPadX = Math.max(6, Math.round(basePadX * 1.1));
 
     const borderColor = colors.border;
     const headerBg = flags.highContrast ? colors.surface : colors.surface;
@@ -311,10 +318,14 @@ export function AdaptiveTable<T>(props: AdaptiveTableProps<T>) {
 
     const pagerWrapStyle: AnyStyle = {
         display: "flex",
-        gap: Math.max(8, spacing.base).toString() + "px",
+        gap: Math.max(8, spacing.gapX).toString() + "px",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: Math.max(10, spacing.base * 2).toString() + "px",
+        padding:
+            Math.max(10, spacing.pagePaddingY).toString() +
+            "px " +
+            Math.max(12, spacing.pagePaddingX).toString() +
+            "px",
         borderTop: "1px solid " + borderColor,
         backgroundColor: colors.background,
     };
@@ -389,7 +400,7 @@ export function AdaptiveTable<T>(props: AdaptiveTableProps<T>) {
         const tdStyle: AnyStyle = {};
         mergeStyle(tdStyle, tdStyleBase);
         tdStyle.textAlign = "center";
-        tdStyle.padding = Math.max(16, spacing.base * 2).toString() + "px";
+        tdStyle.padding = Math.max(16, spacing.pagePaddingY).toString() + "px";
 
         trNodes.push(
             React.createElement(
@@ -484,7 +495,11 @@ export function AdaptiveTable<T>(props: AdaptiveTableProps<T>) {
         const capStyle: AnyStyle = {
             captionSide: "top",
             textAlign: "left",
-            padding: Math.max(10, spacing.base * 2).toString() + "px",
+            padding:
+                Math.max(10, spacing.pagePaddingY).toString() +
+                "px " +
+                Math.max(12, spacing.pagePaddingX).toString() +
+                "px",
             fontSize: typography.body,
             color: colors.text,
             fontWeight: 600,
@@ -528,7 +543,7 @@ export function AdaptiveTable<T>(props: AdaptiveTableProps<T>) {
 
         const leftGroupStyle: AnyStyle = {
             display: "flex",
-            gap: Math.max(8, spacing.base).toString() + "px",
+            gap: Math.max(8, spacing.gapX).toString() + "px",
             alignItems: "center",
         };
 

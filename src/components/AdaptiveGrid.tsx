@@ -73,12 +73,14 @@ export function AdaptiveGrid(props: AdaptiveGridProps) {
     effectiveColumns = 1;
   }
 
-  // Gap adapts with spacing token
-  const gapPx = Math.max(10, Math.round(spacing.base * 1.5));
+  // Gap adapts with spacing tokens
+  const gapX = Math.max(10, spacing.gapX);
+  const gapY = Math.max(10, spacing.gapY);
 
   const style: AnyStyle = {
     display: "grid",
-    gap: gapPx + "px",
+    columnGap: gapX.toString() + "px",
+    rowGap: gapY.toString() + "px",
     gridTemplateColumns: `repeat(${effectiveColumns}, minmax(${minColumnWidth}px, 1fr))`,
     alignItems: props.alignItems || "stretch",
     justifyItems: props.justifyItems || "stretch",

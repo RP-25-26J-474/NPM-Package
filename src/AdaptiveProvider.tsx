@@ -5,17 +5,21 @@ import React, {
   useEffect,
   useState,
   useCallback,
-  useRef,
 } from "react";
+
+import { predictFallbackTokens } from "./fallback-ml/predict";
+import { readFallbackCache, writeFallbackCache } from "./fallback-ml/cache";
+import { buildFallbackProfileFromPredictions } from "./utils";
 
 import type {
   AdaptiveContextValue,
   AdaptiveProviderProps,
   AdaptiveFeedbackPayload,
   AuraProfile,
+  AuraProfileV2,
   AuraTokens,
   AuraSource,
-  AuraMlResponse,
+  AuraMlEnvelopeV2,
 } from "./types";
 
 import {
@@ -37,18 +41,50 @@ import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components
 
 // --- INITIAL DEFAULT STATES ---
 const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
+import { deriveTokensFromProfile, mockFetchAuraEnvelope, DEFAULT_GUEST_PROFILE } from "./utils";
+
+// const initialProfile: AuraProfileV2 = DEFAULT_GUEST_PROFILE;
 const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
 
 const AdaptiveContext = createContext<AdaptiveContextValue | null>(null);
 
-// ----------------------------
-// Future extension bridge (kept for later)
-// ----------------------------
+type AnyStyle = Record<string, any>;
 
+const DEFAULT_EXTENSION_PROMPT_MESSAGE =
+  "Install the AURA extension for a more personalized UI adaptation experience.";
+const DEFAULT_EXTENSION_PROMPT_CTA = "Get AURA Extension";
+const DEFAULT_EXTENSION_PROMPT_DISMISS_LABEL = "Not now";
+const DEFAULT_EXTENSION_PROMPT_STORAGE_KEY = "__aura_ext_prompt_seen_v1";
+
+function mergeStyle(target: AnyStyle, incoming: any) {
+  if (!incoming) return;
+  const keys = Object.keys(incoming);
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const v = incoming[k];
+    if (v !== undefined) target[k] = v;
+  }
+}
+
+function isLoggedInUserId(userId: string | undefined | null): boolean {
+  if (!userId) return false;
+  const normalized = String(userId).trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized !== "guest" &&
+    normalized !== "anonymous" &&
+    normalized !== "anon" &&
+    normalized !== "unknown"
+  );
+}
+
+// ----------------------------
+// Extension bridge (page <-> content script via window.postMessage)
+// ----------------------------
 type AuraExtensionBridge = {
   isInstalled: () => Promise<boolean>;
   getUserId: () => Promise<string>;
-  getMlProfile: (userId: string) => Promise<AuraMlResponse>;
+  getMlEnvelope: (userId: string) => Promise<AuraMlEnvelopeV2>;
 };
 
 function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
@@ -67,7 +103,7 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
       }, timeoutMs);
 
       function onMessage(ev: MessageEvent) {
-        const d = ev && (ev as any).data ? (ev as any).data : null;
+        const d = ev && ev.data ? ev.data : null;
         if (!d || d.__aura !== true) return;
         if (d.requestId !== requestId) return;
         if (d.type !== responseType) return;
@@ -78,7 +114,6 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
       }
 
       window.addEventListener("message", onMessage);
-
       window.postMessage({ __aura: true, type: requestType, requestId }, "*");
     });
   }
@@ -98,11 +133,12 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
         "AURA_EXT_GET_USER_ID",
         "AURA_EXT_USER_ID"
       );
-      return payload?.userId ? String(payload.userId) : "guest";
+      return payload && payload.userId ? String(payload.userId) : "guest";
     },
 
-    getMlProfile: async (_userId: string) => {
-      const payload = await request<AuraMlResponse>(
+    getMlEnvelope: async (_userId: string) => {
+      // extension returns the full envelope directly
+      const payload = await request<AuraMlEnvelopeV2>(
         "AURA_EXT_GET_ML_PROFILE",
         "AURA_EXT_ML_PROFILE"
       );
@@ -111,24 +147,39 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
   };
 }
 
-// ----------------------------
-// Helper: apply ML json to state
-// ----------------------------
-
-function applyMlJson(
-  mlJson: AuraMlResponse,
+function applyEnvelope(
+  env: AuraMlEnvelopeV2,
   setUserId: (v: string) => void,
   setSource: (v: AuraSource) => void,
-  setProfile: (v: AuraProfile) => void,
+  setProfile: (v: AuraProfileV2) => void,
   setTokens: (v: AuraTokens) => void
 ) {
-  setUserId(mlJson.user_id);
-  setSource(mlJson.metadata.origin);
-  setProfile(mlJson.profile);
-  setTokens(deriveTokensFromProfile(mlJson.profile));
+  const inner = env.profile;
+  setUserId(inner.user_id);
+  setSource(inner.metadata.origin);
+  setProfile(inner.profile);
+  setTokens(deriveTokensFromProfile(inner.profile));
 }
 
-// --- PROVIDER COMPONENT ---
+async function loadFallback(
+  setUserId: (v: string) => void,
+  setSource: (v: AuraSource) => void,
+  setProfile: (v: AuraProfileV2) => void,
+  setTokens: (v: AuraTokens) => void
+) {
+  // 1) cache first
+  const cached = readFallbackCache();
+  const pred = cached ?? predictFallbackTokens();
+
+  if (!cached) writeFallbackCache(pred);
+
+  const fullProfile = buildFallbackProfileFromPredictions(pred);
+
+  setUserId("guest");
+  setSource("fallback");
+  setProfile(fullProfile);
+  setTokens(deriveTokensFromProfile(fullProfile));
+}
 
 export function AdaptiveProvider({
   children,
@@ -140,7 +191,7 @@ export function AdaptiveProvider({
   debugMode = false,
 }: AdaptiveProviderProps & { mode?: "standard" | "trial-based" }) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
-  const [profile, setProfile] = useState<AuraProfile | null>(initialProfile);
+  const [profile, setProfile] = useState<AuraProfileV2 | null>(initialProfile);
   const [tokens, setTokens] = useState<AuraTokens>(initialTokens);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>();
@@ -316,19 +367,15 @@ export function AdaptiveProvider({
     onError: (error) => console.error('[AURA] ❌ Settings sync error:', error),
   });
 
-  // prevent double-handling messages
-  const lastAppliedSessionRef = useRef<string>("");
-
-  // -------------------------
-  // OLD SIMULATION PATH
-  // -------------------------
-  const loadProfile = useCallback(
+  // DEV path: local mocks
+  const loadFromMocks = useCallback(
     async (uid?: string) => {
       const effectiveUserId = uid ?? initialUserId ?? "guest";
 
       try {
         setLoading(true);
         setError(undefined);
+        setIsExtensionInstalled(true);
 
         if (!apiEndpoint) {
           throw new Error("Missing apiEndpoint for personalization request");
@@ -342,7 +389,7 @@ export function AdaptiveProvider({
         setProfile(response.profile);
         setTokens(deriveTokensFromProfile(response.profile));
       } catch (err) {
-        console.error("[AURA] Failed to load personalization", err);
+        console.error("[AURA] Failed to load personalization (mock)", err);
         setError("Failed to load personalization");
         try {
           const fallback = await mockFetchAuraProfile(effectiveUserId);
@@ -378,6 +425,7 @@ export function AdaptiveProvider({
     try {
       setLoading(true);
       setError(undefined);
+      setIsExtensionLoggedIn(undefined);
 
       const installed = await bridge.isInstalled();
       setIsExtensionInstalled(installed);
@@ -389,45 +437,53 @@ export function AdaptiveProvider({
       }
 
       const extUserId = await bridge.getUserId();
-      const mlJson = await bridge.getMlProfile(extUserId);
+      const loggedIn = isLoggedInUserId(extUserId);
+      setIsExtensionLoggedIn(loggedIn);
 
-      applyMlJson(mlJson, setUserId as any, setSource, setProfile as any, setTokens);
+      if (!loggedIn) {
+        await loadFallback(setUserId, setSource, setProfile, setTokens);
+        return;
+      }
+
+      const env = await bridge.getMlEnvelope(extUserId);
+      applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens);
     } catch (err) {
-      console.error("[AURA] Extension path failed, falling back to guest", err);
+      console.error("[AURA] Extension path failed", err);
       setError("Failed to load personalization from extension");
-      await loadProfile("guest");
+      setIsExtensionLoggedIn(false);
+      await loadFallback(setUserId, setSource, setProfile, setTokens);
     } finally {
       setLoading(false);
     }
-  }, [loadProfile]);
+  }, []);
 
-  // -------------------------
-  // ✅ NEW: Live updates listener (push)
-  // -------------------------
+  // Initialization
   useEffect(() => {
-    if (simulateExtensionInstalled) return; // in simulation, extension not driving changes
+    if (simulateExtensionInstalled) {
+      setIsExtensionInstalled(true);
+      const mockUserId = initialUserId ?? "u_001";
+      loadFromMocks(mockUserId);
+      return;
+    }
+    loadFromExtension();
+  }, [simulateExtensionInstalled, initialUserId, loadFromMocks, loadFromExtension]);
+
+  // Instant update when extension user changes (no refresh)
+  useEffect(() => {
+    if (simulateExtensionInstalled) return;
 
     function onMessage(ev: MessageEvent) {
-      const d: any = ev && (ev as any).data ? (ev as any).data : null;
+      const d = ev && ev.data ? ev.data : null;
       if (!d || d.__aura !== true) return;
+      if (d.type !== "AURA_EXT_PROFILE_CHANGED") return;
 
-      // Extension broadcasts this when user switches
-      if (d.type === "AURA_EXT_PROFILE_CHANGED") {
-        const mlJson = d.payload as AuraMlResponse;
-        if (!mlJson || !mlJson.profile || !mlJson.metadata) return;
-
-        // avoid applying same update twice
-        const sessionKey = String(mlJson.session_id || "");
-        if (sessionKey && lastAppliedSessionRef.current === sessionKey) return;
-        lastAppliedSessionRef.current = sessionKey;
-
-        applyMlJson(mlJson, setUserId as any, setSource, setProfile as any, setTokens);
-      }
+      // When extension says profile changed -> re-fetch
+      loadFromExtension();
     }
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [simulateExtensionInstalled]);
+  }, [simulateExtensionInstalled, loadFromExtension]);
 
   const submitFeedback = useCallback(
     async (feedback: AdaptiveFeedbackPayload): Promise<{ success: boolean }> => {
@@ -657,17 +713,191 @@ export function AdaptiveProvider({
 
   // --- Initialization ---
   useEffect(() => {
-    // KEEP OLD SIMULATION WORKING
-    if (simulateExtensionInstalled) {
-      setIsExtensionInstalled(true);
-      const mockUserId = initialUserId ?? "u_001";
-      loadProfile(mockUserId);
-      return;
+    if (simulateExtensionInstalled) return;
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(extensionPromptStorageKey);
+      if (stored === "1") setIsExtensionPromptSuppressed(true);
+    } catch {
+      // ignore storage errors
     }
+  }, [simulateExtensionInstalled, extensionPromptStorageKey]);
 
-    // REAL extension mode
-    loadFromExtension();
-  }, [simulateExtensionInstalled, initialUserId, loadProfile, loadFromExtension]);
+  const shouldShowExtensionPrompt =
+    showExtensionPrompt &&
+    !simulateExtensionInstalled &&
+    !loading &&
+    !isExtensionInstalled &&
+    !isExtensionPromptSuppressed &&
+    !isExtensionPromptClosed;
+
+  useEffect(() => {
+    if (!shouldShowExtensionPrompt) return;
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(extensionPromptStorageKey, "1");
+    } catch {
+      // ignore storage errors
+    }
+  }, [shouldShowExtensionPrompt, extensionPromptStorageKey]);
+
+  const extensionPrompt = shouldShowExtensionPrompt
+    ? (() => {
+        const { colors, typography, spacing, controls, flags } = tokens;
+
+        const containerStyle: AnyStyle = {
+          width: "100%",
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: Math.max(10, spacing.gapX),
+          padding:
+            Math.max(10, spacing.padY).toString() +
+            "px " +
+            Math.max(12, spacing.padX).toString() +
+            "px",
+          borderRadius: 14,
+          borderWidth: flags.highContrast ? 2 : 1,
+          borderStyle: "solid",
+          borderColor: flags.highContrast ? colors.text : colors.primary,
+          backgroundColor: flags.highContrast ? colors.background : colors.surface,
+          color: colors.text,
+          marginBottom: Math.max(12, spacing.gapY),
+        };
+        mergeStyle(containerStyle, extensionPromptStyle);
+
+        const messageStyle: AnyStyle = {
+          fontSize: typography.body,
+          lineHeight: typography.lineHeight,
+          flex: "1 1 240px",
+        };
+        mergeStyle(messageStyle, extensionPromptMessageStyle);
+
+        const actionsStyle: AnyStyle = {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: Math.max(8, Math.round(spacing.gapX * 0.8)),
+          flex: "0 0 auto",
+        };
+
+        const ctaStyle: AnyStyle = {
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: Math.max(6, Math.round(spacing.gapX * 0.5)),
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderColor: colors.primary,
+          backgroundColor: colors.primary,
+          color: colors.onPrimary,
+          borderRadius: 999,
+          padding:
+            Math.max(8, Math.round(spacing.padY * 0.6)).toString() +
+            "px " +
+            Math.max(12, Math.round(spacing.padX * 0.9)).toString() +
+            "px",
+          minHeight: Math.max(32, Math.round(controls.minTargetSize * 0.7)),
+          textDecoration: "none",
+          fontSize: typography.body,
+          lineHeight: typography.lineHeight,
+          cursor: "pointer",
+        };
+        mergeStyle(ctaStyle, extensionPromptCtaStyle);
+
+        const dismissStyle: AnyStyle = {
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderColor: flags.highContrast ? colors.text : colors.border,
+          backgroundColor: "transparent",
+          color: colors.text,
+          borderRadius: 999,
+          padding:
+            Math.max(8, Math.round(spacing.padY * 0.6)).toString() +
+            "px " +
+            Math.max(12, Math.round(spacing.padX * 0.9)).toString() +
+            "px",
+          minHeight: Math.max(32, Math.round(controls.minTargetSize * 0.7)),
+          textDecoration: "none",
+          fontSize: typography.body,
+          lineHeight: typography.lineHeight,
+          cursor: "pointer",
+        };
+        mergeStyle(dismissStyle, extensionPromptDismissStyle);
+
+        const messageEl = React.createElement(
+          "div",
+          { style: messageStyle },
+          extensionPromptMessage
+        );
+
+        const handleDismiss = () => {
+          setIsExtensionPromptClosed(true);
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(extensionPromptStorageKey, "1");
+            } catch {
+              // ignore storage errors
+            }
+          }
+          if (onExtensionPromptDismiss) onExtensionPromptDismiss();
+        };
+
+        let ctaEl: React.ReactNode = null;
+        if (extensionPromptCtaHref || onExtensionPromptCtaClick) {
+          if (extensionPromptCtaHref) {
+            ctaEl = React.createElement(
+              "a",
+              {
+                href: extensionPromptCtaHref,
+                style: ctaStyle,
+                onClick: onExtensionPromptCtaClick,
+              },
+              extensionPromptCtaLabel
+            );
+          } else {
+            ctaEl = React.createElement(
+              "button",
+              {
+                type: "button",
+                style: ctaStyle,
+                onClick: onExtensionPromptCtaClick,
+              },
+              extensionPromptCtaLabel
+            );
+          }
+        }
+
+        const dismissEl = React.createElement(
+          "button",
+          {
+            type: "button",
+            style: dismissStyle,
+            onClick: handleDismiss,
+            "aria-label": extensionPromptDismissLabel,
+          },
+          extensionPromptDismissLabel
+        );
+
+        const actionsEl = React.createElement(
+          "div",
+          { style: actionsStyle },
+          ctaEl,
+          dismissEl
+        );
+
+        return React.createElement(
+          "div",
+          { role: "status", "aria-live": "polite", style: containerStyle },
+          messageEl,
+          actionsEl
+        );
+      })()
+    : null;
 
   // --- Initialize Behavior Tracker (Week 1 Implementation) ---
   useEffect(() => {
@@ -722,7 +952,7 @@ export function AdaptiveProvider({
 
     reload: async () => {
       if (simulateExtensionInstalled) {
-        await loadProfile(userId);
+        await loadFromMocks(userId);
         return;
       }
       await loadFromExtension();
@@ -791,11 +1021,8 @@ export function AdaptiveProvider({
   );
 }
 
-// --- HOOK ---
 export function useAdaptive(): AdaptiveContextValue {
   const ctx = useContext(AdaptiveContext);
-  if (!ctx) {
-    throw new Error("useAdaptive must be used inside <AdaptiveProvider>");
-  }
+  if (!ctx) throw new Error("useAdaptive must be used inside <AdaptiveProvider>");
   return ctx;
 }

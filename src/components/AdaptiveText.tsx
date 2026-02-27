@@ -142,8 +142,8 @@ export function AdaptiveText(props: AdaptiveTextProps) {
     textStyle.fontFamily =
       "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
     textStyle.backgroundColor = colors.surface;
-    const py = Math.max(2, Math.round(spacing.base * 0.5));
-    const px = Math.max(4, Math.round(spacing.base * 0.75));
+    const py = Math.max(2, Math.round(spacing.padY * 0.5));
+    const px = Math.max(4, Math.round(spacing.padX * 0.75));
     textStyle.padding = py.toString() + "px " + px.toString() + "px";
     textStyle.borderRadius = 6;
   }
