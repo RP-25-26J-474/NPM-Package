@@ -91,15 +91,30 @@ export interface AuraTokens {
 
 export type AuraSource = "category" | "user" | "fallback";
 
+export type AdaptiveFeedbackType = "positive" | "neutral" | "negative";
+
+export interface AdaptiveFeedbackPayload {
+  type: AdaptiveFeedbackType | 'explicit';
+  value?: number;  // For explicit feedback: 1.0 (yes) or 0.0 (no)
+  rating?: number;
+  comment?: string;
+  responseTime?: number;
+}
+
 export interface AdaptiveContextValue {
   userId?: string;
+  sessionId?: string;
   source: AuraSource;
   profile: AuraProfile | null;
   tokens: AuraTokens;
   loading: boolean;
   error?: string;
   isExtensionInstalled: boolean;
+  behaviorTracker?: any; // BehaviorTracker instance
+  apiEndpoint?: string; // Add this
+  submitFeedback?: (feedback: AdaptiveFeedbackPayload) => Promise<{ success: boolean }>;
   reload: () => Promise<void>;
+  openComponentFeedback?: (componentId: string, type: 'button' | 'text' | 'container' | 'input', currentProps: any) => void;
 }
 
 export interface AdaptiveProviderProps {
@@ -114,6 +129,20 @@ export interface AdaptiveProviderProps {
    * automatically load personalization on mount.
    */
   simulateExtensionInstalled?: boolean;
+  /**
+   * API endpoint for behavior tracking and personalization.
+   * Example: 'https://your-backend.com/api'
+   */
+  apiEndpoint?: string;
+  /**
+   * Enable implicit behavior tracking (Week 1 implementation).
+   * Tracks user behavior silently without prompts.
+   */
+  enableBehaviorTracking?: boolean;
+  /**
+   * Enable debug logging for behavior tracker.
+   */
+  debugMode?: boolean;
 }
 
 export interface AdaptiveComponentProps {
