@@ -52,7 +52,7 @@ export interface AdaptiveButtonProps
 }
 
 export function AdaptiveButton(props: AdaptiveButtonProps) {
-  const { tokens } = useAdaptive();
+  const { tokens, behaviorTracker, openComponentFeedback } = useAdaptive();
   const { colors, spacing, controls, typography, flags } = tokens;
 
   const [hovered, setHovered] = useState(false);
@@ -70,79 +70,60 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   const iconGap = Math.max(props.iconGapPx ?? spacing.gapX, 8);
 
   const ariaLabelProp = (props as any)["aria-label"];
+  const idProp = props.id || (props as any)["data-testid"] || "button-" + Math.random().toString(36).substr(2, 5);
+  const nameProp = props.name;
+  const valueProp = props.value;
 
-  // Use children as text if provided, else fallback to textLabel
-  const textChild = props.children ?? props.textLabel;
+  const baseBg =
+    variant === "secondary"
+      ? colors.secondary
+      : variant === "ghost"
+      ? "transparent"
+      : colors.primary;
 
-  // Default: if icon exists and text exists => show both.
-  // If iconOnly requested => icon only (but we may override in simplified mode).
-  const requestedIconOnly = props.iconOnly === true;
-  const requestedShowText = props.showText;
+  const textColor =
+    variant === "ghost" ? colors.primary : colors.onPrimary ?? colors.text;
 
-  // Low computer literacy rule heuristic: layoutSimplification => prefer text visible
-  const preferText = flags.layoutSimplification === true;
-
-  let iconOnly = requestedIconOnly;
-  if (preferText && requestedIconOnly) {
-    // Avoid icon-only in simplified mode unless developer *explicitly* hides text and provides aria-label
-    // We'll keep iconOnly true only if aria-label exists and no text is available.
-    if (textChild != null) iconOnly = false;
-  }
-
-  const showText =
-    requestedShowText !== undefined
-      ? requestedShowText
-      : // Default: show text if available, especially in simplified mode
-        textChild != null;
-
-  const effectiveIconOnly = iconOnly && icon != null && (!showText || textChild == null);
-
-  // ---- Variant colors ----
-  let bg = colors.primary;
-  let fg = colors.onPrimary;
-  let border = colors.border;
-
-  if (variant === "secondary") {
-    bg = colors.secondary;
-    fg = colors.onSecondary;
-  } else if (variant === "accent") {
-    bg = colors.accent;
-    fg = colors.onAccent;
-  } else if (variant === "ghost") {
-    bg = "transparent";
-    fg = flags.highContrast ? colors.text : colors.primary;
-    border = flags.highContrast ? colors.text : colors.primary;
-  }
-
-  // Contrast rule: if highContrast, make border/text stronger
-  if (flags.highContrast && variant !== "ghost") {
-    border = colors.text;
-  }
-
-  // ---- Padding / hit area ----
-  const minHit = Math.max(props.minHitAreaPx ?? controls.minTargetSize, 44); // ≥44×44
-
-  const basePadY = props.paddingY ?? spacing.padY;
-  const basePadX = props.paddingX ?? spacing.padX;
-
-  // Keep your original “comfort padding” logic, but ensure hit-area
-  const minPadY = Math.round(minHit * 0.22);
-  const minPadX = Math.round(minHit * 0.40);
-
-  const paddingY = Math.max(basePadY, minPadY);
-  const paddingX = Math.max(basePadX, minPadX);
-
-  // Text size adaptability
-  const fontSize = props.textSize ?? typography.body;
-
-  // Focus outline (strong)
-  const focusRing = Math.max(props.focusRingPx ?? 3, 2);
-  const focusColor = flags.highContrast ? colors.text : colors.primary;
+  const paddingY = Math.max(
+    spacing.base,
+    Math.round(controls.minTargetSize * 0.25)
+  );
+  const paddingX = paddingY * 2;
 
   const handleMouseEnter = (event: MouseEvent<HTMLButtonElement>) => {
     setHovered(true);
-    if (props.onMouseEnter) props.onMouseEnter(event);
+    if (behaviorTracker?.trackInteraction) {
+        behaviorTracker.trackInteraction(idProp, 'hover', { variant });
+    }
+    if (onMouseEnterProp) {
+      onMouseEnterProp(event);
+    }
   };
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+      // NEW: Active Feedback Trigger (Alt + Click)
+      if (event.altKey && openComponentFeedback) {
+        event.preventDefault();
+        event.stopPropagation();
+        openComponentFeedback(idProp, 'button', { 
+            variant, 
+            text: typeof children === 'string' ? children : 'nested-content',
+            computedSize: controls.minTargetSize
+        });
+        return;
+      }
+
+      if (behaviorTracker?.trackInteraction) {
+          behaviorTracker.trackInteraction(idProp, 'click', { 
+            variant, 
+            text: typeof children === 'string' ? children : 'nested-content' 
+          });
+      }
+      if (onClickProp) {
+          onClickProp(event);
+      }
+  };
+
 
   const handleMouseLeave = (event: MouseEvent<HTMLButtonElement>) => {
     setHovered(false);
@@ -221,7 +202,7 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   buttonProps.disabled = disabled;
   buttonProps.className = "adaptive-button " + classNameProp;
   buttonProps.style = buttonStyle;
-  buttonProps.onClick = props.onClick;
+  buttonProps.onClick = handleClick; // Use the instrumented handler
   buttonProps.onMouseEnter = handleMouseEnter;
   buttonProps.onMouseLeave = handleMouseLeave;
   buttonProps.onFocus = handleFocus;

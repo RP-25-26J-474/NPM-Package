@@ -219,10 +219,48 @@ function AdaptiveNavbarItem(props: AdaptiveNavbarItemProps) {
     commonProps.href = disabled ? undefined : props.href;
     commonProps.onClick = disabled ? undefined : props.onClick;
   } else {
+    commonProps.disabled = disabled;
+    // WRAP onClick to support Alt+Click
+    const originalClick = props.onClick;
+    commonProps.onClick = (e: any) => {
+        if (e.altKey) {
+             // We need access to openComponentFeedback. 
+             // Since this is a nested pure function, we might need to query it or context.
+             // Best way: dispatch a custom event OR allow the parent to handle it? 
+             // EASIEST: Just use window dispatch or assume global handler?
+             // No, let's use useAdaptive() hook inside this component.
+        }
+        if (!disabled && originalClick) originalClick(e);
+    };
+  }
+
+  // RE-WRITE to include hook
+  // We can't easily add hooks inside this function if it wasn't designed as a full component with hooks above.
+  // Wait, AdaptiveNavbarItem IS a component function.
+  const { openComponentFeedback } = useAdaptive();
+
+  const handleInteraction = (e: any) => {
+      if (e.altKey && openComponentFeedback) {
+          e.preventDefault();
+          e.stopPropagation();
+          openComponentFeedback("nav-item-" + Math.random().toString(36).substr(2, 5), 'button', { 
+              active, 
+              text: 'nav-item'
+          });
+          return;
+      }
+      if (!disabled && props.onClick) props.onClick(e);
+  };
+
+  if (asTag === "a") {
+    commonProps.href = disabled ? undefined : props.href;
+    commonProps.onClick = handleInteraction;
+  } else {
     commonProps.type = "button";
     commonProps.disabled = disabled;
-    commonProps.onClick = disabled ? undefined : props.onClick;
+    commonProps.onClick = handleInteraction;
   }
+
 
   return React.createElement(asTag, commonProps as any, (props as any).children);
 }
