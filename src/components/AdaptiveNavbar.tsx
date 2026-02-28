@@ -64,17 +64,17 @@ function AdaptiveNavbarRoot(props: AdaptiveNavbarProps) {
   const simplify = flags.layoutSimplification === true && props.detailed !== true;
 
   // Navbar height based on target size + spacing (motor-friendly)
-  const heightPx = Math.max(56, controls.minTargetSize + Math.round(spacing.base * 2));
+  const heightPx = Math.max(56, controls.minTargetSize + Math.round(spacing.padY * 2));
 
-  const padX = Math.max(12, Math.round(spacing.base * 2));
-  const padY = Math.max(8, Math.round(spacing.base * 1.2));
+  const padX = Math.max(12, spacing.padX);
+  const padY = Math.max(8, spacing.padY);
 
   const style: AnyStyle = {
     width: "100%",
     minHeight: heightPx,
     display: "flex",
     alignItems: "center",
-    gap: Math.max(10, spacing.base).toString() + "px",
+    gap: Math.max(10, spacing.gapX).toString() + "px",
     padding: padY.toString() + "px " + padX.toString() + "px",
     boxSizing: "border-box",
     backgroundColor: colors.surface,
@@ -122,7 +122,7 @@ function AdaptiveNavbarBrand(props: AdaptiveComponentProps) {
   const style: AnyStyle = {
     display: "flex",
     alignItems: "center",
-    gap: Math.max(8, spacing.base).toString() + "px",
+    gap: Math.max(8, spacing.gapX).toString() + "px",
     fontSize: typography.h3,
     fontWeight: 800,
     lineHeight: typography.lineHeight,
@@ -143,12 +143,14 @@ function AdaptiveNavbarNav(props: AdaptiveComponentProps) {
   const { spacing, controls } = tokens;
 
   // Never hide nav. In simplify mode, only adjust spacing/layout.
-  const gap = simplify ? Math.max(8, Math.round(spacing.base * 0.8)) : Math.max(10, spacing.base);
+  const gap = simplify
+    ? Math.max(8, Math.round(spacing.gapX * 0.8))
+    : Math.max(10, spacing.gapX);
 
   const style: AnyStyle = {
     display: "flex",
     alignItems: "center",
-    gap: gap.toString() + "px",
+    columnGap: gap.toString() + "px",
     flexWrap: "wrap",
     // In simplified mode, keep items easier to hit and avoid tight clustering
     rowGap: simplify ? Math.max(8, Math.round(controls.minTargetSize * 0.25)) : undefined,
@@ -180,7 +182,7 @@ function AdaptiveNavbarItem(props: AdaptiveNavbarItemProps) {
   const disabled = props.disabled === true;
 
   const minH = Math.max(controls.minTargetSize, Math.round(heightPx * 0.65));
-  const padX = Math.max(10, Math.round(spacing.base * 1.6));
+  const padX = Math.max(10, spacing.padX);
 
   const style: AnyStyle = {
     display: "inline-flex",
@@ -281,7 +283,7 @@ function AdaptiveNavbarActions(props: AdaptiveComponentProps & { maxVisible?: nu
   const style: AnyStyle = {
     display: "flex",
     alignItems: "center",
-    gap: Math.max(10, spacing.base).toString() + "px",
+    gap: Math.max(10, spacing.gapX).toString() + "px",
   };
 
   mergeStyle(style, (props as any).style);
