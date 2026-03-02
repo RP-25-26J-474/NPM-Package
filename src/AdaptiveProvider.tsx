@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 
 import { predictFallbackTokens } from "./fallback-ml/predict";
@@ -26,7 +27,8 @@ import {
   CATEGORY_PROFILE_MOCK,
   deriveTokensFromProfile,
   fetchAuraProfile,
-  mockFetchAuraProfile,
+  mockFetchAuraEnvelope,
+  DEFAULT_GUEST_PROFILE,
 } from "./utils";
 
 import { BehaviorTracker } from "./BehaviorTracker";
@@ -41,10 +43,8 @@ import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components
 
 // --- INITIAL DEFAULT STATES ---
 const initialProfile: AuraProfile = CATEGORY_PROFILE_MOCK.profile;
-import { deriveTokensFromProfile, mockFetchAuraEnvelope, DEFAULT_GUEST_PROFILE } from "./utils";
-
 // const initialProfile: AuraProfileV2 = DEFAULT_GUEST_PROFILE;
-const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
+const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile as any);
 
 const AdaptiveContext = createContext<AdaptiveContextValue | null>(null);
 
@@ -189,17 +189,32 @@ export function AdaptiveProvider({
   enableBehaviorTracking = true,
   mode = "standard", // NEW: "standard" | "trial-based"
   debugMode = false,
+  showExtensionPrompt = false,
+  extensionPromptMessage = DEFAULT_EXTENSION_PROMPT_MESSAGE,
+  extensionPromptCtaLabel = DEFAULT_EXTENSION_PROMPT_CTA,
+  extensionPromptCtaHref,
+  onExtensionPromptCtaClick,
+  extensionPromptStyle,
+  extensionPromptMessageStyle,
+  extensionPromptCtaStyle,
+  extensionPromptDismissLabel = DEFAULT_EXTENSION_PROMPT_DISMISS_LABEL,
+  extensionPromptDismissStyle,
+  extensionPromptStorageKey = DEFAULT_EXTENSION_PROMPT_STORAGE_KEY,
+  onExtensionPromptDismiss,
 }: AdaptiveProviderProps & { mode?: "standard" | "trial-based" }) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
-  const [profile, setProfile] = useState<AuraProfileV2 | null>(initialProfile);
+  const [profile, setProfile] = useState<AuraProfileV2 | null>(initialProfile as any);
   const [tokens, setTokens] = useState<AuraTokens>(initialTokens);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>();
   const [source, setSource] = useState<AuraSource>("category");
   const [sessionId, setSessionId] = useState<string | undefined>(undefined);
-  const [isExtensionInstalled, setIsExtensionInstalled] =
-    useState<boolean>(false);
+  const [isExtensionInstalled, setIsExtensionInstalled] = useState<boolean>(false);
+  const [isExtensionLoggedIn, setIsExtensionLoggedIn] = useState<boolean | undefined>(undefined);
+  const [isExtensionPromptSuppressed, setIsExtensionPromptSuppressed] = useState(false);
+  const [isExtensionPromptClosed, setIsExtensionPromptClosed] = useState(false);
   const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
+  const [changedProfileKeys, setChangedProfileKeys] = useState<string[]>([]);
 
   // NEW: Settings change feedback state
   const [showSettingsPrompt, setShowSettingsPrompt] = useState(false);
@@ -293,16 +308,22 @@ export function AdaptiveProvider({
     }
     
     // Map dashboard settings to AuraProfile format
-    const updatedProfile: AuraProfile = {
-      font_size: settings.fontSize || currentProfile?.font_size || 'medium',
+    const updatedProfile: AuraProfileV2 = {
+      font_size: typeof settings.fontSize === 'number' ? settings.fontSize : (currentProfile?.font_size || 16),
       line_height: settings.lineHeight || currentProfile?.line_height || 1.5,
       contrast_mode: settings.contrast || currentProfile?.contrast_mode || 'normal',
       primary_color: settings.primaryColor || currentProfile?.primary_color || '#007bff',
+      primary_color_content: '#ffffff',
       secondary_color: settings.secondaryColor || currentProfile?.secondary_color || '#6c757d',
+      secondary_color_content: '#ffffff',
       accent_color: settings.accentColor || currentProfile?.accent_color || '#28a745',
+      accent_color_content: '#ffffff',
       theme: settings.theme || currentProfile?.theme || 'light',
       reduced_motion: settings.reducedMotion ?? currentProfile?.reduced_motion ?? false,
-      element_spacing: settings.spacing || currentProfile?.element_spacing || 'normal',
+      element_spacing_x: 8,
+      element_spacing_y: 8,
+      element_padding_x: 12,
+      element_padding_y: 12,
       target_size: targetSizeValue,
       tooltip_assist: settings.tooltipAssist ?? currentProfile?.tooltip_assist ?? false,
       layout_simplification: settings.layoutSimplification ?? currentProfile?.layout_simplification ?? false,
@@ -319,6 +340,19 @@ export function AdaptiveProvider({
     console.log('[AURA] 🎯 UI should now reflect: theme=%s, fontSize=%s, colors=%s', 
       updatedProfile.theme, updatedProfile.font_size, updatedProfile.primary_color);
 
+    // BROWSER CACHE PERSISTENCE
+    if (typeof window !== 'undefined') {
+        try {
+           // We use the top-level state `userId` from the component instead of the profile itself
+           // Fallback to "guest" just in case.
+           const cacheKey = `aura_user_profile_${userId || 'guest'}`;
+           window.localStorage.setItem(cacheKey, JSON.stringify(updatedProfile));
+           console.log(`[AURA] 💾 Profile explicitly saved to browser cache: ${cacheKey}`);
+        } catch (e) {
+           console.error('[AURA] ❌ Failed to save profile to localStorage:', e);
+        }
+    }
+
     // INJECT CSS VARIABLES FOR REAL-TIME UPDATES
     if (typeof document !== 'undefined') {
         const root = document.documentElement;
@@ -330,7 +364,7 @@ export function AdaptiveProvider({
         root.style.setProperty('--aura-base-size', newTokens.typography.baseSize);
         root.style.setProperty('--aura-line-height', String(newTokens.typography.lineHeight));
         // Spacing
-        root.style.setProperty('--aura-spacing-base', `${newTokens.spacing.base}px`);
+        root.style.setProperty('--aura-spacing-base', `${newTokens.spacing.padY}px`);
         // Controls
         root.style.setProperty('--aura-min-target-size', `${newTokens.controls.minTargetSize}px`);
         
@@ -338,7 +372,7 @@ export function AdaptiveProvider({
     }
     
     // Check for significant deviation
-    const isSignificant = isSignificantDeviation(settings, currentProfile || initialProfile);
+    const isSignificant = isSignificantDeviation(settings, (currentProfile as any) || initialProfile);
     console.log(`[AURA] 📏 Significant deviation check: ${isSignificant} (Source: ${source})`);
 
     // Store for feedback prompt
@@ -383,24 +417,40 @@ export function AdaptiveProvider({
 
         const response = await fetchAuraProfile(apiEndpoint, effectiveUserId);
 
+        const fetchedProfile = response.profile as any;
+        
+        // HYDRATION: Check if user already has a saved override in this browser
+        let finalProfile = fetchedProfile;
+        try {
+            if (typeof window !== 'undefined') {
+                const cachedProfileRaw = window.localStorage.getItem(`aura_user_profile_${effectiveUserId}`);
+                if (cachedProfileRaw) {
+                    finalProfile = JSON.parse(cachedProfileRaw);
+                    console.log(`[AURA] ♻️ Hydrating prioritized profile from localStorage for ${effectiveUserId}`);
+                }
+            }
+        } catch (e) {
+            console.error('[AURA] ❌ LocalStorage read error during mock hydration', e);
+        }
+
         setUserId(response.user_id);
         setSessionId(response.session_id);
-        setSource(response.metadata.origin);
-        setProfile(response.profile);
-        setTokens(deriveTokensFromProfile(response.profile));
+        setSource(response.metadata.origin as any);
+        setProfile(finalProfile);
+        setTokens(deriveTokensFromProfile(finalProfile));
       } catch (err) {
         console.error("[AURA] Failed to load personalization (mock)", err);
         setError("Failed to load personalization");
         try {
-          const fallback = await mockFetchAuraProfile(effectiveUserId);
-          setUserId(fallback.user_id);
-          setSessionId(fallback.session_id);
-          setSource(fallback.metadata.origin);
-          setProfile(fallback.profile);
-          setTokens(deriveTokensFromProfile(fallback.profile));
+          const fallback = await mockFetchAuraEnvelope(effectiveUserId);
+          setUserId(fallback.profile.user_id);
+          setSessionId(fallback.profile.session_id);
+          setSource(fallback.profile.metadata.origin as any);
+          setProfile(fallback.profile.profile);
+          setTokens(deriveTokensFromProfile(fallback.profile.profile));
         } catch (fallbackError) {
           // Fallback to initial category profile
-          setProfile(initialProfile);
+          setProfile(initialProfile as any);
           setTokens(initialTokens);
           setSource("fallback");
           setUserId("guest");
@@ -432,7 +482,7 @@ export function AdaptiveProvider({
 
       if (!installed) {
         // No extension → category guest for now
-        await loadProfile("guest");
+        await loadFromMocks("guest");
         return;
       }
 
@@ -446,7 +496,58 @@ export function AdaptiveProvider({
       }
 
       const env = await bridge.getMlEnvelope(extUserId);
-      applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens);
+      
+      // HYDRATION: Check if user already has a saved override in this browser
+      let hasHydrated = false;
+      try {
+          if (typeof window !== 'undefined') {
+              const cachedProfileRaw = window.localStorage.getItem(`aura_user_profile_${extUserId}`);
+              if (cachedProfileRaw) {
+                  const cachedProfile = JSON.parse(cachedProfileRaw);
+                  console.log(`[AURA] ♻️ Hydrating prioritized profile from localStorage for ${extUserId}`);
+                  fetchAuraProfile(apiEndpoint || '', extUserId).catch(() => {}); // Optional: silent ping
+                  
+                  // Apply envelope but use the cached profile
+                  const inner = env.profile;
+                  setUserId(inner.user_id);
+                  setSource('user'); // Source is the user's manual local cache
+                  setProfile(cachedProfile);
+                  setTokens(deriveTokensFromProfile(cachedProfile));
+                  hasHydrated = true;
+                  
+                  // Suppress redundant feedback popups since we loaded customized settings
+                  setChangedProfileKeys([]);
+              }
+          }
+      } catch (e) {
+          console.error('[AURA] ❌ LocalStorage read error during extension hydration', e);
+      }
+
+      if (!hasHydrated) {
+          applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens);
+      }
+
+      // Handle real-time profile_changes from the behavior extension length>0
+      // ONLY if we didn't just hydrate from a customized local cache!
+      const changes = env.profile_changes || (env as any).profile?.profile_changes || (env as any).profile_changes;
+      if (!hasHydrated && changes && changes.changed && changes.changed.length > 0) {
+        console.log('[AURA] 📥 Received profile_changes from behavior extension:', changes);
+
+        const primaryChangedKey = changes.changed[0];
+        setLatestSettings(changes.new);
+        setSettingsSource('ml');
+        setChangedProfileKeys(changes.changed);
+        
+        const metadata = env.profile?.metadata || (env as any).metadata;
+        setMlConfidence(metadata?.confidence_overall || 0.76);
+        setChangedSettingKey(primaryChangedKey);
+        setSettingOldValue(changes.old[primaryChangedKey]);
+        
+        // Show the component feedback prompt to the user
+        setShowSettingsPrompt(true);
+      } else {
+        setChangedProfileKeys([]);
+      }
     } catch (err) {
       console.error("[AURA] Extension path failed", err);
       setError("Failed to load personalization from extension");
@@ -563,6 +664,11 @@ export function AdaptiveProvider({
       if (sentiment === 'positive' && latestSettings) {
           console.log(`[AURA] 🔒 Committing settings (User liked them)`);
           
+          if (!isExtensionInstalled) {
+             console.log('[AURA] 🚫 Extension not installed. Skipping DB commit for settings feedback.');
+             return;
+          }
+
           try {
              // We save the ENTIRE latestSettings which is the delta object (e.g. { targetSize: 32 })
              // This avoids key mismatch issues (snake_case vs camelCase)
@@ -901,7 +1007,10 @@ export function AdaptiveProvider({
 
   // --- Initialize Behavior Tracker (Week 1 Implementation) ---
   useEffect(() => {
-    if (!enableBehaviorTracking || !apiEndpoint || !userId || loading) {
+    if (!enableBehaviorTracking || !apiEndpoint || !userId || loading || !isExtensionInstalled) {
+      if (!isExtensionInstalled) {
+        console.log('[AURA] 🛑 Extension not installed. Behavior tracking disabled.');
+      }
       return;
     }
 
@@ -929,7 +1038,42 @@ export function AdaptiveProvider({
         (window as any).__behaviorTracker = null;
       }
     };
-  }, [enableBehaviorTracking, apiEndpoint, userId, sessionId, source, loading, debugMode]);
+  }, [enableBehaviorTracking, apiEndpoint, userId, sessionId, source, loading, debugMode, isExtensionInstalled]);
+
+  // NEW: Daily Sync API
+  const syncProfileToML = useCallback(async (): Promise<boolean> => {
+    if (!apiEndpoint || !userId || !profile) {
+      console.warn('[AURA] Cannot sync profile: missing endpoint, userId, or profile');
+      return false;
+    }
+    
+    if (!isExtensionInstalled) {
+      console.warn('[AURA] Cannot sync profile: ML Extension is not installed');
+      return false;
+    }
+
+    try {
+      console.log('[AURA] 🔄 Syncing explicitly maintained profile to ML engine:', profile);
+      const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/rl-feedback/sync-daily`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          profile,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Sync request failed (${response.status})`);
+      }
+      const result = await response.json();
+      console.log('[AURA] ✅ Daily Sync successful');
+      return result && result.success === true;
+    } catch (err) {
+      console.error('[AURA] ❌ Sync failed:', err);
+      return false;
+    }
+  }, [apiEndpoint, userId, profile, isExtensionInstalled]);
 
   const contextValue: AdaptiveContextValue = {
     userId,
@@ -958,6 +1102,8 @@ export function AdaptiveProvider({
       await loadFromExtension();
     },
     openComponentFeedback,
+    changedProfileKeys,
+    syncProfileToML,
   };
 
   return React.createElement(

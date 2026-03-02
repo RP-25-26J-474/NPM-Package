@@ -32,9 +32,9 @@ export function useRealtimeUIUpdates() {
     root.style.setProperty('--aura-color-border', tokens.colors.border);
 
     // Apply spacing
-    root.style.setProperty('--aura-spacing-base', `${tokens.spacing.base}px`);
-    root.style.setProperty('--aura-spacing-gap', `${tokens.spacing.gap}px`);
-    root.style.setProperty('--aura-spacing-padding', `${tokens.spacing.pagePadding}px`);
+    root.style.setProperty('--aura-spacing-base', `${tokens.spacing.padY}px`);
+    root.style.setProperty('--aura-spacing-gap', `${tokens.spacing.gapY}px`);
+    root.style.setProperty('--aura-spacing-padding', `${tokens.spacing.pagePaddingY}px`);
 
     // Apply controls
     root.style.setProperty('--aura-target-size', `${tokens.controls.minTargetSize}px`);

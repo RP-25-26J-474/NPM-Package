@@ -54,7 +54,7 @@ export function AdaptiveChangeConfirmation({
           detectedChanges.push('High contrast mode');
         }
 
-        const spacing = tokens.spacing?.base;
+        const spacing = tokens.spacing?.padY;
         if (spacing && spacing > 8) {
           detectedChanges.push('Wider spacing');
         }

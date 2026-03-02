@@ -6,6 +6,33 @@ import type { CSSProperties, ReactNode } from "react";
 export type AuraContrastMode = "normal" | "high";
 export type AuraThemeMode = "light" | "dark";
 
+export interface AuraProfile {
+  font_size: string | number;
+  line_height: number;
+  contrast_mode: "normal" | "high";
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  theme: AuraThemeMode;
+  reduced_motion: boolean;
+  element_spacing: string | number;
+  target_size: number;
+  tooltip_assist: boolean;
+  layout_simplification: boolean;
+}
+
+export interface AuraMlResponse {
+  user_id: string;
+  session_id?: string;
+  metadata: {
+    origin: "category" | "user";
+    created_at: string;
+    confidence_overall: number;
+  };
+  profile: AuraProfile;
+  node_outputs: any;
+}
+
 export interface AuraProfileV2 {
   // numeric now
   font_size: number; // px
@@ -46,6 +73,7 @@ export interface AuraMlMetadataV2 {
 // Inner "profile" object inside the envelope
 export interface AuraMlProfileObjectV2 {
   user_id: string;
+  session_id?: string;
   metadata: AuraMlMetadataV2;
   profile: AuraProfileV2;
 }
@@ -53,6 +81,12 @@ export interface AuraMlProfileObjectV2 {
 // Full response envelope from ML/extension
 export interface AuraMlEnvelopeV2 {
   profile: AuraMlProfileObjectV2;
+
+  profile_changes?: {
+    changed?: string[];
+    old?: any;
+    new?: any;
+  };
 
   // keep these loose because they can evolve
   diff?: {
@@ -157,6 +191,8 @@ export interface AdaptiveContextValue {
   /** Re-fetch from extension (or mocks in dev) */
   reload: () => Promise<void>;
   openComponentFeedback?: (componentId: string, type: 'button' | 'text' | 'container' | 'input', currentProps: any) => void;
+  changedProfileKeys?: string[]; // Keys of profile settings that were changed recently by ML
+  syncProfileToML?: () => Promise<boolean>; // Manually sync current local profile to ML engine
 }
 
 export interface AdaptiveProviderProps {

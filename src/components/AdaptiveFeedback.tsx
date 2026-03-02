@@ -3,7 +3,7 @@ import React, { useEffect, useState, type CSSProperties } from "react";
 import { useAdaptive } from "../AdaptiveProvider";
 
 export function AdaptiveFeedback() {
-  const { behaviorTracker, userId, apiEndpoint, profile } = useAdaptive();
+  const { behaviorTracker, userId, apiEndpoint, profile, changedProfileKeys } = useAdaptive();
   
   // State for the new flow
   const [step, setStep] = useState<"idle" | "validation" | "fetching" | "suggestion">("idle");
@@ -15,8 +15,33 @@ export function AdaptiveFeedback() {
     const handleAnomaly = (event: Event) => {
       const customEvent = event as CustomEvent;
       console.log("🚨 [AdaptiveFeedback] Anomaly event received:", customEvent.detail);
-      setAnomaly(customEvent.detail);
-      setStep("validation"); // Start the flow
+      
+      const anomalyData = customEvent.detail;
+      const smartInference = getSmartSuggestion(anomalyData.type, anomalyData.data);
+      const param = smartInference.relevantParam;
+      
+      // Convert camelCase param to snake_case for profile checking
+      const paramMapToSnake: Record<string, string> = {
+          'fontSize': 'font_size',
+          'targetSize': 'target_size',
+          'contrastMode': 'contrast_mode',
+          'elementSpacing': 'element_spacing',
+          'layoutSimplification': 'layout_simplification',
+          'reducedMotion': 'reduced_motion',
+          'theme': 'theme',
+          'lineHeight': 'line_height'
+      };
+      
+      const profileKey = paramMapToSnake[param] || param;
+      
+      // Only proceed if this component's typical setting actually changed recently
+      if (changedProfileKeys && changedProfileKeys.includes(profileKey)) {
+          console.log(`[AdaptiveFeedback] ✅ Anomaly relevant to recent change (${profileKey}). Prompting user.`);
+          setAnomaly(anomalyData);
+          setStep("validation"); // Start the flow
+      } else {
+          console.log(`[AdaptiveFeedback] ⏭️ Ignoring anomaly for ${profileKey} because it wasn't recently changed. Changed keys:`, changedProfileKeys);
+      }
     };
 
     window.addEventListener("aura-anomaly", handleAnomaly);
@@ -85,7 +110,7 @@ export function AdaptiveFeedback() {
     // User confirmed -> Neg Feedback for current
     setStep("fetching");
     
-    // Get parameter from our smart inference
+    // Get parameter from our smart inference (re-calculate or store in state, here re-calculating is fine as anomaly state is set)
     const smartInference = getSmartSuggestion(anomaly.type, anomaly.data);
     const param = smartInference.relevantParam;
     

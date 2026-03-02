@@ -1,0 +1,82 @@
+﻿src/AdaptiveProvider.tsx(18,3): error TS2724: '"./types"' has no exported member named 'AuraProfile'. Did you mean 'AuraProfileV2'?
+src/AdaptiveProvider.tsx(27,3): error TS2300: Duplicate identifier 'deriveTokensFromProfile'.
+src/AdaptiveProvider.tsx(29,3): error TS2724: '"./utils"' has no exported member named 'mockFetchAuraProfile'. Did you mean 'fetchAuraProfile'?
+src/AdaptiveProvider.tsx(44,10): error TS2300: Duplicate identifier 'deriveTokensFromProfile'.
+src/AdaptiveProvider.tsx(228,22): error TS2304: Cannot find name 'useRef'.
+src/AdaptiveProvider.tsx(333,76): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/AdaptiveProvider.tsx(428,7): error TS2304: Cannot find name 'setIsExtensionLoggedIn'.
+src/AdaptiveProvider.tsx(435,15): error TS2304: Cannot find name 'loadProfile'.
+src/AdaptiveProvider.tsx(441,7): error TS2304: Cannot find name 'setIsExtensionLoggedIn'.
+src/AdaptiveProvider.tsx(471,7): error TS2304: Cannot find name 'setIsExtensionLoggedIn'.
+src/AdaptiveProvider.tsx(737,50): error TS2304: Cannot find name 'extensionPromptStorageKey'.
+src/AdaptiveProvider.tsx(738,27): error TS2304: Cannot find name 'setIsExtensionPromptSuppressed'.
+src/AdaptiveProvider.tsx(742,35): error TS2304: Cannot find name 'extensionPromptStorageKey'.
+src/AdaptiveProvider.tsx(745,5): error TS2304: Cannot find name 'showExtensionPrompt'.
+src/AdaptiveProvider.tsx(749,6): error TS2304: Cannot find name 'isExtensionPromptSuppressed'.
+src/AdaptiveProvider.tsx(750,6): error TS2304: Cannot find name 'isExtensionPromptClosed'.
+src/AdaptiveProvider.tsx(756,35): error TS2304: Cannot find name 'extensionPromptStorageKey'.
+src/AdaptiveProvider.tsx(760,34): error TS2304: Cannot find name 'extensionPromptStorageKey'.
+src/AdaptiveProvider.tsx(787,36): error TS2304: Cannot find name 'extensionPromptStyle'.
+src/AdaptiveProvider.tsx(794,34): error TS2304: Cannot find name 'extensionPromptMessageStyle'.
+src/AdaptiveProvider.tsx(825,30): error TS2304: Cannot find name 'extensionPromptCtaStyle'.
+src/AdaptiveProvider.tsx(848,34): error TS2304: Cannot find name 'extensionPromptDismissStyle'.
+src/AdaptiveProvider.tsx(853,11): error TS2304: Cannot find name 'extensionPromptMessage'.
+src/AdaptiveProvider.tsx(857,11): error TS2304: Cannot find name 'setIsExtensionPromptClosed'.
+src/AdaptiveProvider.tsx(860,43): error TS2304: Cannot find name 'extensionPromptStorageKey'.
+src/AdaptiveProvider.tsx(865,15): error TS2304: Cannot find name 'onExtensionPromptDismiss'.
+src/AdaptiveProvider.tsx(865,41): error TS2304: Cannot find name 'onExtensionPromptDismiss'.
+src/AdaptiveProvider.tsx(869,13): error TS2304: Cannot find name 'extensionPromptCtaHref'.
+src/AdaptiveProvider.tsx(869,39): error TS2304: Cannot find name 'onExtensionPromptCtaClick'.
+src/AdaptiveProvider.tsx(870,15): error TS2304: Cannot find name 'extensionPromptCtaHref'.
+src/AdaptiveProvider.tsx(874,23): error TS2304: Cannot find name 'extensionPromptCtaHref'.
+src/AdaptiveProvider.tsx(876,26): error TS2304: Cannot find name 'onExtensionPromptCtaClick'.
+src/AdaptiveProvider.tsx(878,15): error TS2304: Cannot find name 'extensionPromptCtaLabel'.
+src/AdaptiveProvider.tsx(886,26): error TS2304: Cannot find name 'onExtensionPromptCtaClick'.
+src/AdaptiveProvider.tsx(888,15): error TS2304: Cannot find name 'extensionPromptCtaLabel'.
+src/AdaptiveProvider.tsx(899,27): error TS2304: Cannot find name 'extensionPromptDismissLabel'.
+src/AdaptiveProvider.tsx(901,11): error TS2304: Cannot find name 'extensionPromptDismissLabel'.
+src/components/AdaptiveButton.tsx(88,13): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/components/AdaptiveButton.tsx(98,9): error TS2304: Cannot find name 'onMouseEnterProp'.
+src/components/AdaptiveButton.tsx(99,7): error TS2304: Cannot find name 'onMouseEnterProp'.
+src/components/AdaptiveButton.tsx(110,26): error TS2304: Cannot find name 'children'.
+src/components/AdaptiveButton.tsx(110,50): error TS2304: Cannot find name 'children'.
+src/components/AdaptiveButton.tsx(119,26): error TS2304: Cannot find name 'children'.
+src/components/AdaptiveButton.tsx(119,50): error TS2304: Cannot find name 'children'.
+src/components/AdaptiveButton.tsx(122,11): error TS2304: Cannot find name 'onClickProp'.
+src/components/AdaptiveButton.tsx(123,11): error TS2304: Cannot find name 'onClickProp'.
+src/components/AdaptiveButton.tsx(146,15): error TS2304: Cannot find name 'minHit'.
+src/components/AdaptiveButton.tsx(147,16): error TS2304: Cannot find name 'minHit'.
+src/components/AdaptiveButton.tsx(155,18): error TS2304: Cannot find name 'border'.
+src/components/AdaptiveButton.tsx(157,49): error TS2304: Cannot find name 'bg'.
+src/components/AdaptiveButton.tsx(158,43): error TS2304: Cannot find name 'fg'.
+src/components/AdaptiveButton.tsx(160,15): error TS2304: Cannot find name 'fontSize'.
+src/components/AdaptiveButton.tsx(171,10): error TS2304: Cannot find name 'effectiveIconOnly'.
+src/components/AdaptiveButton.tsx(185,22): error TS2304: Cannot find name 'focusRing'.
+src/components/AdaptiveButton.tsx(185,42): error TS2304: Cannot find name 'focusColor'.
+src/components/AdaptiveButton.tsx(219,14): error TS2304: Cannot find name 'effectiveIconOnly'.
+src/components/AdaptiveButton.tsx(241,6): error TS2304: Cannot find name 'effectiveIconOnly'.
+src/components/AdaptiveButton.tsx(241,27): error TS2304: Cannot find name 'showText'.
+src/components/AdaptiveButton.tsx(241,39): error TS2304: Cannot find name 'textChild'.
+src/components/AdaptiveButton.tsx(243,10): error TS2304: Cannot find name 'textChild'.
+src/components/AdaptiveChangeConfirmation.tsx(57,41): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/components/AdaptiveFeedbackPrompt.tsx(59,39): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/components/AdaptiveRevert.tsx(63,32): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/components/AdaptiveRevert.tsx(64,32): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/components/AdaptiveRevert.tsx(65,32): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/components/AdaptiveRevert.tsx(66,32): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/hooks/useRealtimeUIUpdates.ts(35,69): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/hooks/useRealtimeUIUpdates.ts(36,68): error TS2551: Property 'gap' does not exist on type 'AuraSpacingTokens'. Did you mean 'gapX'?
+src/hooks/useRealtimeUIUpdates.ts(37,72): error TS2551: Property 'pagePadding' does not exist on type 'AuraSpacingTokens'. Did you mean 'pagePaddingX'?
+src/hooks/useSettingsSync.ts(3,15): error TS2724: '"../types"' has no exported member named 'AuraProfile'. Did you mean 'AuraProfileV2'?
+src/utils.ts(39,37): error TS2304: Cannot find name 'AuraMlResponse'.
+src/utils.ts(70,13): error TS2304: Cannot find name 'AuraFontSize'.
+src/utils.ts(71,4): error TS2304: Cannot find name 'AuraFontSize'.
+src/utils.ts(83,13): error TS2304: Cannot find name 'AuraElementSpacing'.
+src/utils.ts(84,4): error TS2304: Cannot find name 'AuraElementSpacing'.
+src/utils.ts(123,33): error TS2304: Cannot find name 'AuraMlResponse'.
+src/utils.ts(333,34): error TS2552: Cannot find name 'USER_PROFILE_MOCK_U002'. Did you mean 'USER_PROFILE_MOCK'?
+src/utils.ts(334,34): error TS2552: Cannot find name 'USER_PROFILE_MOCK_U003'. Did you mean 'USER_PROFILE_MOCK'?
+src/utils.ts(335,34): error TS2552: Cannot find name 'USER_PROFILE_MOCK_U004'. Did you mean 'USER_PROFILE_MOCK'?
+src/utils.ts(336,34): error TS2304: Cannot find name 'USER_PROFILE_MOCK_U005'.
+src/utils.ts(344,12): error TS2304: Cannot find name 'AuraMlResponse'.
+src/utils.ts(382,18): error TS2304: Cannot find name 'AuraProfile'.

@@ -1,9 +1,10 @@
-// src/utils.ts
 import type {
-  AuraMlEnvelopeV2,
-  AuraProfileV2,
-  AuraTokens,
   AuraThemeMode,
+  AuraProfile,
+  AuraProfileV2,
+  AuraMlResponse,
+  AuraMlEnvelopeV2,
+  AuraTokens,
 } from "./types";
 
 type PersonalizationSettings = {
@@ -67,8 +68,8 @@ const normalizeEndpoint = (endpoint: string): string => {
 
 const mapFontSize = (
   fontSize: string | undefined,
-  fallback: AuraFontSize
-): AuraFontSize => {
+  fallback: string | number
+): string | number => {
   if (!fontSize) return fallback;
   const parsed = parseInt(fontSize, 10);
   if (Number.isNaN(parsed)) return fallback;
@@ -80,8 +81,8 @@ const mapFontSize = (
 
 const mapSpacing = (
   spacing: string | undefined,
-  fallback: AuraElementSpacing
-): AuraElementSpacing => {
+  fallback: string | number
+): string | number => {
   if (!spacing) return fallback;
   if (spacing === "compact" || spacing === "normal" || spacing === "wide") {
     return spacing;
@@ -329,12 +330,8 @@ export const mockFetchAuraEnvelope = async (
 ): Promise<AuraMlEnvelopeV2> => {
   await new Promise((r) => setTimeout(r, 150));
 
-  if (userId === "u_001") return USER_PROFILE_MOCK;
-  if (userId === "u_002") return USER_PROFILE_MOCK_U002;
-  if (userId === "u_003") return USER_PROFILE_MOCK_U003;
-  if (userId === "u_004") return USER_PROFILE_MOCK_U004;
-  if (userId === "u_005") return USER_PROFILE_MOCK_U005;
-
+  if (userId === "u_001") return DEFAULT_GUEST_ENVELOPE;
+  
   return DEFAULT_GUEST_ENVELOPE;
 };
 

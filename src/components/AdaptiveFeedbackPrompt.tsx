@@ -56,7 +56,7 @@ export function AdaptiveFeedbackPrompt({
       }
 
       // Check spacing
-      const spacing = tokens.spacing?.base;
+      const spacing = tokens.spacing?.padY;
       if (spacing && spacing > 8) {
         detectedChanges.push('Wider spacing');
       } else if (spacing && spacing < 8) {

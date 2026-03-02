@@ -60,10 +60,11 @@ export function AdaptiveRevert(props: AdaptiveRevertProps) {
   };
 
   // Use actual spacing token properties
-  const spacingLg = `${spacing.base * 2}px`; // 32px typically
-  const spacingSm = `${spacing.base * 0.5}px`; // 8px typically
-  const spacingMd = `${spacing.base}px`; // 16px typically
-  const spacingXs = `${spacing.base * 0.25}px`; // 4px typically
+  // Use actual spacing token properties
+  const spacingLg = `${spacing.padY * 2}px`; // 32px typically
+  const spacingSm = `${spacing.padY * 0.5}px`; // 8px typically
+  const spacingMd = `${spacing.padY}px`; // 16px typically
+  const spacingXs = `${spacing.padY * 0.25}px`; // 4px typically
 
   const positionStyles: Record<string, CSSProperties> = {
     'bottom-right': { bottom: spacingLg, right: spacingLg },

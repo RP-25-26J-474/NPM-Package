@@ -1,0 +1,5 @@
+src/components/AdaptiveChangeConfirmation.tsx(57,41): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/components/AdaptiveFeedbackPrompt.tsx(59,39): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/hooks/useRealtimeUIUpdates.ts(35,69): error TS2339: Property 'base' does not exist on type 'AuraSpacingTokens'.
+src/hooks/useRealtimeUIUpdates.ts(36,68): error TS2551: Property 'gap' does not exist on type 'AuraSpacingTokens'. Did you mean 'gapX'?
+src/hooks/useRealtimeUIUpdates.ts(37,72): error TS2551: Property 'pagePadding' does not exist on type 'AuraSpacingTokens'. Did you mean 'pagePaddingX'?

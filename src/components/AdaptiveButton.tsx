@@ -85,7 +85,7 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
     variant === "ghost" ? colors.primary : colors.onPrimary ?? colors.text;
 
   const paddingY = Math.max(
-    spacing.base,
+    spacing.padY,
     Math.round(controls.minTargetSize * 0.25)
   );
   const paddingX = paddingY * 2;
@@ -95,8 +95,8 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
     if (behaviorTracker?.trackInteraction) {
         behaviorTracker.trackInteraction(idProp, 'hover', { variant });
     }
-    if (onMouseEnterProp) {
-      onMouseEnterProp(event);
+    if (props.onMouseEnter) {
+      props.onMouseEnter(event);
     }
   };
 
@@ -107,7 +107,7 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
         event.stopPropagation();
         openComponentFeedback(idProp, 'button', { 
             variant, 
-            text: typeof children === 'string' ? children : 'nested-content',
+            text: typeof props.children === 'string' ? props.children : 'nested-content',
             computedSize: controls.minTargetSize
         });
         return;
@@ -116,11 +116,11 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
       if (behaviorTracker?.trackInteraction) {
           behaviorTracker.trackInteraction(idProp, 'click', { 
             variant, 
-            text: typeof children === 'string' ? children : 'nested-content' 
+            text: typeof props.children === 'string' ? props.children : 'nested-content' 
           });
       }
-      if (onClickProp) {
-          onClickProp(event);
+      if (props.onClick) {
+          props.onClick(event);
       }
   };
 
@@ -143,8 +143,8 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   // Motor rule: avoid icon-only by default (we already prefer text in layoutSimplification)
   // Also enforce minimum hit target.
   const buttonStyle: React.CSSProperties = {
-    minWidth: minHit,
-    minHeight: minHit,
+    minWidth: props.minHitAreaPx ?? Math.max(controls.minTargetSize, 44),
+    minHeight: props.minHitAreaPx ?? Math.max(controls.minTargetSize, 44),
     padding: paddingY.toString() + "px " + paddingX.toString() + "px",
 
     borderRadius: 9999,
@@ -152,12 +152,12 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
     // Avoid mixing shorthand/non-shorthand
     borderWidth: 1,
     borderStyle: "solid",
-    borderColor: border,
+    borderColor: colors.border,
 
-    backgroundColor: disabled ? colors.border : bg,
-    color: disabled ? colors.background : fg,
+    backgroundColor: disabled ? colors.border : baseBg,
+    color: disabled ? colors.background : textColor,
 
-    fontSize: fontSize,
+    fontSize: props.textSize ?? typography.body,
     lineHeight: typography.lineHeight,
     fontWeight: 800,
 
@@ -168,7 +168,7 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: effectiveIconOnly ? 0 : iconGap,
+    gap: props.iconOnly ? 0 : iconGap,
 
     transform:
       !flags.reducedMotion && hovered && !disabled ? "scale(1.03)" : "scale(1)",
@@ -182,7 +182,7 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
     // Strong focus outline
     boxShadow:
       focused && !disabled
-        ? "0 0 0 " + focusRing + "px " + focusColor
+        ? "0 0 0 " + (props.focusRingPx ?? 2) + "px " + colors.primary
         : "none",
   };
 
@@ -216,7 +216,7 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   // Accessibility: if iconOnly, ensure aria-label exists
   if (ariaLabelProp !== undefined) {
     (buttonProps as any)["aria-label"] = ariaLabelProp;
-  } else if (effectiveIconOnly) {
+  } else if (props.iconOnly) {
     (buttonProps as any)["aria-label"] = "Action";
   }
 
@@ -238,9 +238,9 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
     ) : null;
 
   const textNode =
-    !effectiveIconOnly && showText && textChild != null ? (
+    !props.iconOnly && (props.showText ?? true) && (props.textLabel ?? props.children) != null ? (
       <span style={{ display: "inline-block", whiteSpace: "nowrap" }}>
-        {textChild as any}
+        {(props.textLabel ?? props.children) as any}
       </span>
     ) : null;
 
