@@ -1,0 +1,344 @@
+// src/components/AdaptiveFeedback.tsx
+import React, { useEffect, useState, type CSSProperties } from "react";
+import { useAdaptive } from "../AdaptiveProvider";
+
+export function AdaptiveFeedback() {
+  const { behaviorTracker, userId, apiEndpoint, profile, changedProfileKeys } = useAdaptive();
+  
+  // State for the new flow
+  const [step, setStep] = useState<"idle" | "validation" | "fetching" | "suggestion">("idle");
+  const [anomaly, setAnomaly] = useState<any>(null);
+  const [suggestion, setSuggestion] = useState<any>(null);
+  const [targetParam, setTargetParam] = useState<string>("");
+
+  useEffect(() => {
+    const handleAnomaly = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log("🚨 [AdaptiveFeedback] Anomaly event received:", customEvent.detail);
+      
+      const anomalyData = customEvent.detail;
+      const smartInference = getSmartSuggestion(anomalyData.type, anomalyData.data);
+      const param = smartInference.relevantParam;
+      
+      // Convert camelCase param to snake_case for profile checking
+      const paramMapToSnake: Record<string, string> = {
+          'fontSize': 'font_size',
+          'targetSize': 'target_size',
+          'contrastMode': 'contrast_mode',
+          'elementSpacing': 'element_spacing',
+          'layoutSimplification': 'layout_simplification',
+          'reducedMotion': 'reduced_motion',
+          'theme': 'theme',
+          'lineHeight': 'line_height'
+      };
+      
+      const profileKey = paramMapToSnake[param] || param;
+      
+      // Only proceed if this component's typical setting actually changed recently
+      if (changedProfileKeys && changedProfileKeys.includes(profileKey)) {
+          console.log(`[AdaptiveFeedback] ✅ Anomaly relevant to recent change (${profileKey}). Prompting user.`);
+          setAnomaly(anomalyData);
+          setStep("validation"); // Start the flow
+      } else {
+          console.log(`[AdaptiveFeedback] ⏭️ Ignoring anomaly for ${profileKey} because it wasn't recently changed. Changed keys:`, changedProfileKeys);
+      }
+    };
+
+    window.addEventListener("aura-anomaly", handleAnomaly);
+    document.addEventListener("aura-anomaly", handleAnomaly);
+
+    return () => {
+      window.removeEventListener("aura-anomaly", handleAnomaly);
+      document.removeEventListener("aura-anomaly", handleAnomaly);
+    };
+  }, []);
+
+  // --- SMART INFERENCE LOGIC ---
+  const getSmartSuggestion = (type: string, data?: any) => {
+    // 1. Rage Click (Motor Control)
+    if (type === 'rage_click') {
+      return {
+        category: "Motor Control / Precision",
+        issue: "It seems like hitting buttons might be difficult.",
+        suggestion: "Increase Button Size",
+        actionLabel: "Make Targets Bigger",
+        relevantParam: "targetSize" // Changed to camelCase to match app.py
+      };
+    }
+    
+    // 2. Dead Click (Vision/Affordance)
+    if (type === 'dead_click') {
+        // If on a text/image element -> Maybe high contrast needed?
+        // If on a container -> maybe element spacing?
+        return {
+          category: "Visual Perception",
+          issue: "It's not clear what is clickable.",
+          suggestion: "High Contrast Mode",
+          actionLabel: "Turn On High Contrast",
+          relevantParam: "contrastMode"
+        };
+    }
+
+    // 3. Scroll Thrashing (Cognitive/Layout)
+    if (type === 'scroll_thrashing') {
+        return {
+          category: "Cognitive Load / Readability",
+          issue: "You might be searching for information.",
+          suggestion: "Simplify Layout & Spacing",
+          actionLabel: "Optimize Layout",
+          relevantParam: "elementSpacing" // Suggest spacing first, or layout_simplification
+        };
+    }
+
+    // 4. Fallback (General)
+    return {
+      category: "General Usability",
+      issue: "You seem to be having trouble.",
+      suggestion: "Adjust View Settings",
+      actionLabel: "Optimize View",
+      relevantParam: "theme"
+    };
+  };
+
+  const handleUserValidation = async (confirmed: boolean) => {
+    if (!confirmed) {
+      setStep("idle");
+      setAnomaly(null);
+      return;
+    }
+
+    // User confirmed -> Neg Feedback for current
+    setStep("fetching");
+    
+    // Get parameter from our smart inference (re-calculate or store in state, here re-calculating is fine as anomaly state is set)
+    const smartInference = getSmartSuggestion(anomaly.type, anomaly.data);
+    const param = smartInference.relevantParam;
+    
+    setTargetParam(param);
+
+    const backendUrl = "http://localhost:8000";
+
+    try {
+      // 1. Send Negative Feedback
+      await fetch(`${backendUrl}/rl/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || "guest",
+          parameter: param,
+          action: "keep_current", // The current state is what caused the issue
+          reward: -0.5,
+          metadata: { source: "user_validation", anomaly: anomaly.type },
+        }),
+      });
+
+      // 2. Ask RL for a Solution
+      const response = await fetch(`${backendUrl}/rl/choose-action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || "guest",
+          parameter: param,
+          context: { 
+            lastFeedback: "negative",
+            avoidCurrent: true // Explicitly tell RL to change something
+          },
+          state: {
+            [param]: profile?.[param as keyof typeof profile] // Send current value if available
+          }
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSuggestion(data);
+        setStep("suggestion");
+      } else {
+        console.error("RL failed to suggest action");
+        setStep("idle");
+      }
+
+    } catch (e) {
+      console.error("Error in feedback loop:", e);
+      setStep("idle");
+    }
+  };
+
+  const handleDismissSuggestion = async () => {
+    if (!suggestion || !targetParam) return;
+    
+    const backendUrl = "http://localhost:8000";
+
+    try {
+      // Send Negative Feedback for the REJECTED suggestion
+      await fetch(`${backendUrl}/rl/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || "guest",
+          parameter: targetParam,
+          action: suggestion.action,
+          reward: -0.5,
+          metadata: { source: "ai_suggestion_rejected" },
+        }),
+      });
+      console.log("Sent negative feedback for rejected suggestion");
+    } catch (e) {
+      console.error("Failed to send rejection feedback:", e);
+    }
+
+    setStep("idle");
+    setAnomaly(null);
+    setSuggestion(null);
+  };
+
+  const handleApplySuggestion = async () => {
+    if (!suggestion || !targetParam) return;
+
+    const reportApi = apiEndpoint || "http://localhost:5000/api";
+    const backendUrl = "http://localhost:8000";
+
+    try {
+      // 1. Apply Setting
+      const settingPayload: any = {};
+      
+      let apiParam = targetParam;
+      // Map RL params (app.py) to API/Profile params (types.ts)
+      const paramMap: Record<string, string> = {
+          'fontSize': 'font_size',
+          'targetSize': 'target_size',
+          'contrastMode': 'contrast_mode',
+          'elementSpacing': 'element_spacing',
+          'layoutSimplification': 'layout_simplification',
+          'reducedMotion': 'reduced_motion',
+          'theme': 'theme'
+      };
+      
+      if (paramMap[targetParam]) {
+          apiParam = paramMap[targetParam];
+      }
+      
+      settingPayload[apiParam] = suggestion.action;
+
+      await fetch(`${reportApi}/manual-settings/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || "guest",
+          settings: settingPayload,
+        }),
+      });
+
+      // 2. Send Positive Feedback for the NEW action
+      await fetch(`${backendUrl}/rl/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId || "guest",
+          parameter: targetParam,
+          action: suggestion.action,
+          reward: 1.0,
+          metadata: { source: "ai_suggestion_accepted" },
+        }),
+      });
+
+      alert(`Applied AI Suggestion: ${suggestion.action}`);
+      setStep("idle");
+      setAnomaly(null);
+      setSuggestion(null);
+
+    } catch (e) {
+      console.error("Failed to apply suggestion:", e);
+      alert("Failed to apply suggestion");
+      setStep("idle");
+    }
+  };
+
+  // --- RENDER ---
+  return React.createElement(
+    React.Fragment,
+    null,
+    // Debug Button
+    userId &&
+      React.createElement(
+        "button",
+        {
+          onClick: () => {
+            const types = ["rage_click", "dead_click", "scroll_thrashing"];
+            const randomType = types[Math.floor(Math.random() * types.length)];
+            const evt = new CustomEvent("aura-anomaly", {
+              bubbles: true,
+              detail: { type: randomType, data: { timestamp: Date.now() } },
+            });
+            window.dispatchEvent(evt);
+          },
+          style: {
+            position: "fixed", bottom: 80, right: 20, zIndex: 100000,
+            background: "red", color: "white", padding: "4px 8px", fontSize: "10px",
+            border: "none", borderRadius: "4px", cursor: "pointer",
+          },
+        },
+        "TEST ANOMALY"
+      ),
+
+    // Validation Step
+    step === "validation" && anomaly &&
+      React.createElement(
+        "div",
+        { style: popupStyle },
+        React.createElement("div", { style: { fontSize: 24, marginBottom: 8 } }, "🤔"),
+        React.createElement("h3", { style: headerStyle }, "Trouble with the interface?"),
+        React.createElement("p", { style: textStyle }, 
+          `We detected a "${anomaly.type}". Is this causing issues?`
+        ),
+        React.createElement(
+          "div",
+          { style: { display: "flex", gap: 8 } },
+          React.createElement("button", { onClick: () => handleUserValidation(false), style: secondaryButtonStyle }, "No, I'm fine"),
+          React.createElement("button", { onClick: () => handleUserValidation(true), style: primaryButtonStyle }, "Yes, Fix it")
+        )
+      ),
+
+    // Suggestion Step
+    step === "suggestion" && suggestion &&
+      React.createElement(
+        "div",
+        { style: popupStyle },
+        React.createElement("div", { style: { fontSize: 24, marginBottom: 8 } }, "💡"),
+        React.createElement("h3", { style: headerStyle }, "AI Suggestion"),
+        React.createElement("p", { style: textStyle }, 
+          // Use reason from RL or fallback
+          suggestion.reasoning?.recommendation || `Try setting ${targetParam} to ${suggestion.action}`
+        ),
+        
+        React.createElement(
+          "div",
+          { style: { marginTop: 12, padding: 8, background: "#f3f4f6", borderRadius: 4, marginBottom: 12, fontSize: 13, fontWeight: "bold", textAlign: "center" } },
+          `${targetParam}: ${suggestion.action}` 
+        ),
+
+        React.createElement(
+          "div",
+          { style: { display: "flex", gap: 8 } },
+          React.createElement("button", { onClick: handleDismissSuggestion, style: secondaryButtonStyle }, "Dismiss"),
+          React.createElement("button", { onClick: handleApplySuggestion, style: primaryButtonStyle }, "Apply Change")
+        )
+      ),
+      
+    // Fetching Indicator
+    step === "fetching" && 
+      React.createElement("div", { style: popupStyle }, "Consulting AI Agent...")
+  );
+}
+
+// Styles (Reused)
+const popupStyle: CSSProperties = {
+  position: "fixed", bottom: 20, right: 20, backgroundColor: "white", padding: 16,
+  borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.2)", border: "1px solid #e5e7eb",
+  zIndex: 99999, maxWidth: 320, animation: "aura-fade-in 0.3s ease-out", fontFamily: "system-ui, sans-serif", color: "black",
+};
+const headerStyle: CSSProperties = { margin: "0 0 8px 0", fontSize: 15, fontWeight: "bold", color: "#1f2937" };
+const textStyle: CSSProperties = { margin: "0 0 16px 0", fontSize: 13, color: "#4b5563", lineHeight: 1.4 };
+const primaryButtonStyle: CSSProperties = { flex: 1, padding: "8px 12px", fontSize: 13, color: "white", background: "#2563eb", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 };
+const secondaryButtonStyle: CSSProperties = { flex: 1, padding: "8px 12px", fontSize: 13, color: "#374151", background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 6, cursor: "pointer" };
+

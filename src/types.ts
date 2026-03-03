@@ -6,6 +6,33 @@ import type { CSSProperties, ReactNode } from "react";
 export type AuraContrastMode = "normal" | "high";
 export type AuraThemeMode = "light" | "dark";
 
+export interface AuraProfile {
+  font_size: string | number;
+  line_height: number;
+  contrast_mode: "normal" | "high";
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  theme: AuraThemeMode;
+  reduced_motion: boolean;
+  element_spacing: string | number;
+  target_size: number;
+  tooltip_assist: boolean;
+  layout_simplification: boolean;
+}
+
+export interface AuraMlResponse {
+  user_id: string;
+  session_id?: string;
+  metadata: {
+    origin: "category" | "user";
+    created_at: string;
+    confidence_overall: number;
+  };
+  profile: AuraProfile;
+  node_outputs: any;
+}
+
 export interface AuraProfileV2 {
   // numeric now
   font_size: number; // px
@@ -46,6 +73,7 @@ export interface AuraMlMetadataV2 {
 // Inner "profile" object inside the envelope
 export interface AuraMlProfileObjectV2 {
   user_id: string;
+  session_id?: string;
   metadata: AuraMlMetadataV2;
   profile: AuraProfileV2;
 }
@@ -53,6 +81,12 @@ export interface AuraMlProfileObjectV2 {
 // Full response envelope from ML/extension
 export interface AuraMlEnvelopeV2 {
   profile: AuraMlProfileObjectV2;
+
+  profile_changes?: {
+    changed?: string[];
+    old?: any;
+    new?: any;
+  };
 
   // keep these loose because they can evolve
   diff?: {
@@ -130,18 +164,35 @@ export interface AuraTokens {
 
 export type AuraSource = "category" | "user" | "fallback";
 
+export type AdaptiveFeedbackType = "positive" | "neutral" | "negative";
+
+export interface AdaptiveFeedbackPayload {
+  type: AdaptiveFeedbackType | 'explicit';
+  value?: number;  // For explicit feedback: 1.0 (yes) or 0.0 (no)
+  rating?: number;
+  comment?: string;
+  responseTime?: number;
+}
+
 export interface AdaptiveContextValue {
   userId?: string;
+  sessionId?: string;
   source: AuraSource;
   profile: AuraProfileV2 | null;
   tokens: AuraTokens;
   loading: boolean;
   error?: string;
   isExtensionInstalled: boolean;
+  behaviorTracker?: any; // BehaviorTracker instance
+  apiEndpoint?: string; // Add this
+  submitFeedback?: (feedback: AdaptiveFeedbackPayload) => Promise<{ success: boolean }>;
   isExtensionLoggedIn?: boolean;
 
   /** Re-fetch from extension (or mocks in dev) */
   reload: () => Promise<void>;
+  openComponentFeedback?: (componentId: string, type: 'button' | 'text' | 'container' | 'input', currentProps: any) => void;
+  changedProfileKeys?: string[]; // Keys of profile settings that were changed recently by ML
+  syncProfileToML?: () => Promise<boolean>; // Manually sync current local profile to ML engine
 }
 
 export interface AdaptiveProviderProps {
@@ -159,6 +210,20 @@ export interface AdaptiveProviderProps {
    * - false => use real extension bridge
    */
   simulateExtensionInstalled?: boolean;
+  /**
+   * API endpoint for behavior tracking and personalization.
+   * Example: 'https://your-backend.com/api'
+   */
+  apiEndpoint?: string;
+  /**
+   * Enable implicit behavior tracking (Week 1 implementation).
+   * Tracks user behavior silently without prompts.
+   */
+  enableBehaviorTracking?: boolean;
+  /**
+   * Enable debug logging for behavior tracker.
+   */
+  debugMode?: boolean;
 
   /** Optional: show a CTA prompt when the extension is missing. */
   showExtensionPrompt?: boolean;
