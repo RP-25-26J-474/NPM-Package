@@ -1,7 +1,8 @@
 // src/fallback-ml/cache.ts
 import type { AuraFallbackOutputs } from "./predict";
 
-const KEY = "__aura_fallback_tokens_v1";
+// bump version to invalidate old cached tokens after model input change
+const KEY = "__aura_fallback_tokens_v2";
 
 export function readFallbackCache(): AuraFallbackOutputs | null {
   try {

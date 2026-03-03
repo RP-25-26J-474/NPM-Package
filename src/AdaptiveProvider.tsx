@@ -163,7 +163,7 @@ async function loadFallback(
 export function AdaptiveProvider({
   children,
   userId: initialUserId,
-  simulateExtensionInstalled = true,
+  simulateExtensionInstalled = false,
   showExtensionPrompt = true,
   extensionPromptMessage = DEFAULT_EXTENSION_PROMPT_MESSAGE,
   extensionPromptCtaLabel = DEFAULT_EXTENSION_PROMPT_CTA,
@@ -224,7 +224,7 @@ export function AdaptiveProvider({
 
   // REAL path: extension
   const loadFromExtension = useCallback(async () => {
-    const bridge = createRealExtensionBridge(900);
+    const bridge = createRealExtensionBridge(2200);
 
     try {
       setLoading(true);
