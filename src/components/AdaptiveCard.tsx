@@ -56,7 +56,7 @@ function useCardCtx(): CardCtx {
 /* ===================== Root ===================== */
 
 function AdaptiveCardRoot(props: AdaptiveCardProps) {
-  const { tokens } = useAdaptive();
+  const { tokens, openComponentFeedback } = useAdaptive();
   const { colors, spacing, flags } = tokens;
 
   const variant: AdaptiveCardVariant =
@@ -111,6 +111,17 @@ function AdaptiveCardRoot(props: AdaptiveCardProps) {
       {
         style: wrapperStyle,
         className: "adaptive-card adaptive-card--" + variant + " " + classNameProp,
+        onClick: (e: React.MouseEvent) => {
+            if (e.altKey && openComponentFeedback) {
+                e.preventDefault();
+                e.stopPropagation();
+                openComponentFeedback((props as any).id || "card-" + Math.random().toString(36).substr(2, 5), 'container', { 
+                  variant, align 
+                });
+                return;
+            }
+            if ((props as any).onClick) (props as any).onClick(e);
+        }
       } as any,
       (props as any).children
     )

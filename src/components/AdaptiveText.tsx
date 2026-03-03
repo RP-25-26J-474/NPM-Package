@@ -59,7 +59,7 @@ function pickTag(variant: TextVariant, as?: string): string {
 }
 
 export function AdaptiveText(props: AdaptiveTextProps) {
-  const { tokens } = useAdaptive();
+  const { tokens, behaviorTracker, openComponentFeedback } = useAdaptive();
   const { colors, typography, flags, spacing } = tokens;
 
   const variant: TextVariant =
@@ -180,6 +180,21 @@ export function AdaptiveText(props: AdaptiveTextProps) {
   const elementProps: any = {
     style: textStyle,
     className: "adaptive-text " + classNameProp,
+    onClick: (e: React.MouseEvent) => {
+      const idToUse = (props as any).id || "text-" + Math.random().toString(36).substr(2, 5);
+      if (e.altKey && openComponentFeedback) {
+          e.preventDefault();
+          e.stopPropagation();
+          openComponentFeedback(idToUse, 'text', { 
+            variant, size 
+          });
+          return;
+      }
+      if (behaviorTracker?.trackInteraction) {
+          behaviorTracker.trackInteraction(idToUse, 'click', { text: String(children).substring(0, 50) });
+      }
+      if ((props as any).onClick) (props as any).onClick(e);
+    }
   };
 
   // Common passthrough attributes (manual)

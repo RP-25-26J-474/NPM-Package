@@ -52,7 +52,7 @@ export interface AdaptiveButtonProps
 }
 
 export function AdaptiveButton(props: AdaptiveButtonProps) {
-  const { tokens } = useAdaptive();
+  const { tokens, behaviorTracker, openComponentFeedback } = useAdaptive();
   const { colors, spacing, controls, typography, flags } = tokens;
 
   const [hovered, setHovered] = useState(false);
@@ -221,7 +221,29 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
   buttonProps.disabled = disabled;
   buttonProps.className = "adaptive-button " + classNameProp;
   buttonProps.style = buttonStyle;
-  buttonProps.onClick = props.onClick;
+  buttonProps.onClick = (event: MouseEvent<HTMLButtonElement>) => {
+    const elementId = props.id || "btn-" + Math.random().toString(36).substr(2, 5);
+    if (event.altKey && openComponentFeedback) {
+      event.preventDefault();
+      event.stopPropagation();
+      openComponentFeedback(elementId, 'button', { 
+          variant, 
+          text: typeof textChild === 'string' ? textChild : 'nested-content',
+          computedSize: minHit
+      });
+      return;
+    }
+
+    if (behaviorTracker?.trackInteraction) {
+      behaviorTracker.trackInteraction(elementId, 'click', { 
+        variant, 
+        text: typeof textChild === 'string' ? textChild : 'nested-content' 
+      });
+    }
+    if (props.onClick) {
+      props.onClick(event);
+    }
+  };
   buttonProps.onMouseEnter = handleMouseEnter;
   buttonProps.onMouseLeave = handleMouseLeave;
   buttonProps.onFocus = handleFocus;

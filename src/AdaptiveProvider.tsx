@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 
 import { predictFallbackTokens } from "./fallback-ml/predict";
@@ -14,6 +15,7 @@ import { buildFallbackProfileFromPredictions } from "./utils";
 import type {
   AdaptiveContextValue,
   AdaptiveProviderProps,
+  AdaptiveFeedbackPayload,
   AuraProfileV2,
   AuraTokens,
   AuraSource,
@@ -21,6 +23,15 @@ import type {
 } from "./types";
 
 import { deriveTokensFromProfile, mockFetchAuraEnvelope, DEFAULT_GUEST_PROFILE } from "./utils";
+import { AdaptiveRevert } from './components/AdaptiveRevert';
+import { BehaviorTracker, BehaviorTrackerConfig } from "./BehaviorTracker";
+import { useTrialManager } from "./hooks/useTrialManager";
+import { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
+import { AdaptiveTempUserPrompt } from "./components/AdaptiveTempUserPrompt";
+import { AdaptiveFeedback } from './components/AdaptiveFeedback';
+import { useSettingsSync } from "./hooks/useSettingsSync";
+import { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
+import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components/ComponentFeedbackModal";
 
 const initialProfile: AuraProfileV2 = DEFAULT_GUEST_PROFILE;
 const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
@@ -131,13 +142,18 @@ function applyEnvelope(
   setUserId: (v: string) => void,
   setSource: (v: AuraSource) => void,
   setProfile: (v: AuraProfileV2) => void,
-  setTokens: (v: AuraTokens) => void
+  setTokens: (v: AuraTokens) => void,
+  onDiffDetected?: (diff: any) => void
 ) {
   const inner = env.profile;
   setUserId(inner.user_id);
   setSource(inner.metadata.origin);
   setProfile(inner.profile);
   setTokens(deriveTokensFromProfile(inner.profile));
+  
+  if (onDiffDetected && env.diff && env.diff.changed && env.diff.changed.length > 0) {
+      onDiffDetected(env.diff);
+  }
 }
 
 async function loadFallback(
@@ -164,6 +180,9 @@ export function AdaptiveProvider({
   children,
   userId: initialUserId,
   simulateExtensionInstalled = false,
+  apiEndpoint,
+  enableBehaviorTracking = true,
+  debugMode = false,
   showExtensionPrompt = true,
   extensionPromptMessage = DEFAULT_EXTENSION_PROMPT_MESSAGE,
   extensionPromptCtaLabel = DEFAULT_EXTENSION_PROMPT_CTA,
@@ -176,13 +195,15 @@ export function AdaptiveProvider({
   extensionPromptDismissStyle,
   extensionPromptStorageKey = DEFAULT_EXTENSION_PROMPT_STORAGE_KEY,
   onExtensionPromptDismiss,
-}: AdaptiveProviderProps) {
+  mode = "standard",
+}: AdaptiveProviderProps & { mode?: "standard" | "trial-based" }) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
   const [profile, setProfile] = useState<AuraProfileV2 | null>(initialProfile);
   const [tokens, setTokens] = useState<AuraTokens>(initialTokens);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>();
   const [source, setSource] = useState<AuraSource>("category");
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
   const [isExtensionInstalled, setIsExtensionInstalled] = useState<boolean>(
     simulateExtensionInstalled
   );
@@ -193,6 +214,235 @@ export function AdaptiveProvider({
     useState<boolean>(false);
   const [isExtensionPromptClosed, setIsExtensionPromptClosed] =
     useState<boolean>(false);
+  const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
+
+  useEffect(() => {
+    if (enableBehaviorTracking) {
+      const tracker = new BehaviorTracker({
+        apiEndpoint: apiEndpoint || '',
+        userId: initialUserId || 'guest',
+        uiVariant: 'baseline',
+        debugMode: debugMode
+      });
+      setBehaviorTracker(tracker);
+
+      return () => {
+        tracker.destroy();
+      };
+    }
+  }, [enableBehaviorTracking, apiEndpoint, initialUserId, debugMode]);
+
+  const [showSettingsPrompt, setShowSettingsPrompt] = useState(false);
+  const [latestSettings, setLatestSettings] = useState<any>(null);
+  const [settingsSource, setSettingsSource] = useState<'manual' | 'ml' | 'trial'>('manual');
+  const [mlConfidence, setMlConfidence] = useState<number>(0.5);
+  const [changedSettingKey, setChangedSettingKey] = useState<string>('');
+  const [settingOldValue, setSettingOldValue] = useState<any>(null);
+
+  const [activeFeedbackComponent, setActiveFeedbackComponent] = useState<{
+    id: string;
+    type: ComponentFeedbackType;
+    props: any;
+  } | null>(null);
+
+  const {
+    activeTrial,
+    showPrompt,
+    trialSettings,
+    handleFeedback: handleTrialFeedback,
+  } = useTrialManager(initialUserId || "guest", apiEndpoint || "", mode);
+
+  const profileRef = useRef(profile);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
+  const isSignificantDeviation = useCallback((newSettings: any, baseProfile: AuraProfileV2): boolean => {
+    if (!newSettings) return false;
+    if (newSettings.theme && newSettings.theme !== baseProfile.theme) return true;
+    const currentFontSize = newSettings.fontSize || baseProfile.font_size;
+    if (currentFontSize !== baseProfile.font_size) return true;
+    const currentContrast = newSettings.contrast || baseProfile.contrast_mode;
+    if (currentContrast !== 'normal' && currentContrast !== baseProfile.contrast_mode) return true;
+    let newTargetSize = baseProfile.target_size;
+    if (newSettings.targetSize) {
+        const val = typeof newSettings.targetSize === 'string' ? parseInt(newSettings.targetSize, 10) : newSettings.targetSize;
+        if (!isNaN(val)) newTargetSize = val;
+    }
+    if (Math.abs(newTargetSize - baseProfile.target_size) > 2) return true;
+    const currentSpacing = newSettings.spacing || baseProfile.element_spacing_y;
+    if (currentSpacing !== baseProfile.element_spacing_y) return true;
+    return false;
+  }, []);
+
+  const handleSettingsUpdate = useCallback((settings: any, source: string, mlConf?: number) => {
+    const currentProfile = profileRef.current;
+    
+    let primaryChangedKey = 'theme';
+    let oldVal: any = currentProfile?.theme;
+    
+    if (settings.theme && settings.theme !== currentProfile?.theme) {
+      primaryChangedKey = 'theme'; oldVal = currentProfile?.theme;
+    } else if (settings.fontSize && settings.fontSize !== currentProfile?.font_size) {
+      primaryChangedKey = 'fontSize'; oldVal = currentProfile?.font_size;
+    } else if (settings.targetSize && settings.targetSize !== currentProfile?.target_size) {
+      primaryChangedKey = 'targetSize'; oldVal = currentProfile?.target_size;
+    }
+    
+    let targetSizeValue = currentProfile?.target_size || 44;
+    if (settings.targetSize) {
+      if (typeof settings.targetSize === 'number') targetSizeValue = settings.targetSize;
+      else if (typeof settings.targetSize === 'string') {
+        const parsed = parseInt(settings.targetSize, 10);
+        targetSizeValue = isNaN(parsed) ? targetSizeValue : parsed;
+      }
+    }
+    
+    const updatedProfile: AuraProfileV2 = {
+      font_size: settings.fontSize || currentProfile?.font_size || 16,
+      line_height: settings.lineHeight || currentProfile?.line_height || 1.5,
+      contrast_mode: settings.contrast || currentProfile?.contrast_mode || 'normal',
+      primary_color: settings.primaryColor || currentProfile?.primary_color || '#007bff',
+      primary_color_content: currentProfile?.primary_color_content || '#ffffff',
+      secondary_color: settings.secondaryColor || currentProfile?.secondary_color || '#6c757d',
+      secondary_color_content: currentProfile?.secondary_color_content || '#ffffff',
+      accent_color: settings.accentColor || currentProfile?.accent_color || '#28a745',
+      accent_color_content: currentProfile?.accent_color_content || '#ffffff',
+      theme: settings.theme || currentProfile?.theme || 'light',
+      reduced_motion: settings.reducedMotion ?? currentProfile?.reduced_motion ?? false,
+      element_spacing_x: settings.spacing || currentProfile?.element_spacing_x || 10,
+      element_spacing_y: settings.spacing || currentProfile?.element_spacing_y || 10,
+      element_padding_x: currentProfile?.element_padding_x || 12,
+      element_padding_y: currentProfile?.element_padding_y || 12,
+      target_size: targetSizeValue,
+      tooltip_assist: settings.tooltipAssist ?? currentProfile?.tooltip_assist ?? false,
+      layout_simplification: settings.layoutSimplification ?? currentProfile?.layout_simplification ?? false,
+    };
+
+    setProfile(updatedProfile);
+    const newTokens = deriveTokensFromProfile(updatedProfile);
+    setTokens(newTokens);
+    setSource('user');
+    
+    if (typeof document !== 'undefined') {
+        const root = document.documentElement;
+        Object.entries(newTokens.colors).forEach(([key, value]) => {
+            root.style.setProperty(`--aura-${key}`, value as string);
+        });
+        root.style.setProperty('--aura-base-size', newTokens.typography.baseSize);
+        root.style.setProperty('--aura-line-height', String(newTokens.typography.lineHeight));
+        root.style.setProperty('--aura-spacing-base', `${newTokens.spacing.gapY}px`);
+        root.style.setProperty('--aura-min-target-size', `${newTokens.controls.minTargetSize}px`);
+    }
+    
+    const isSignificant = isSignificantDeviation(settings, currentProfile || initialProfile);
+
+    setLatestSettings(settings);
+    setSettingsSource(source as 'manual' | 'ml' | 'trial');
+    setMlConfidence(mlConf || 0.5);
+    setChangedSettingKey(primaryChangedKey);
+    setSettingOldValue(oldVal);
+    
+    setShowSettingsPrompt(source === 'ml' && isSignificant);
+  }, [isSignificantDeviation]);
+
+  // Handle Diff from Extension/Backend Profile Load
+  const handleProfileDiff = useCallback((diff: any) => {
+      if (!diff || !diff.changed || diff.changed.length === 0) return;
+      
+      const firstChange = diff.changed[0];
+      const oldVal = diff.old ? diff.old[firstChange] : undefined;
+      const newVal = diff.new ? diff.new[firstChange] : undefined;
+      
+      setLatestSettings(diff.new);
+      setSettingsSource('ml');
+      setChangedSettingKey(firstChange);
+      setSettingOldValue(oldVal);
+      setShowSettingsPrompt(true);
+  }, []);
+
+  useSettingsSync({
+    userId: userId || initialUserId || 'guest',
+    apiEndpoint: apiEndpoint || '',
+    enabled: !!apiEndpoint && !!userId,
+    onSettingsUpdate: handleSettingsUpdate,
+    onConnect: () => {},
+    onError: () => {},
+  });
+
+  const submitFeedback = useCallback(
+    async (feedback: AdaptiveFeedbackPayload): Promise<{ success: boolean }> => {
+      if (!apiEndpoint || !userId || !sessionId) return { success: false };
+      const answer = (feedback.value ?? 0) >= 0.5 ? 'yes' : 'no';
+      const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/feedback/explicit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, sessionId, answer, comment: feedback.comment }),
+      });
+      if (!response.ok) return { success: false };
+      const result = await response.json();
+      return { success: result && result.success === true };
+    },
+    [apiEndpoint, userId, sessionId]
+  );
+
+  const handleSettingsFeedback = useCallback(
+    async (sentiment: 'positive' | 'negative' | 'neutral', comment?: string) => {
+      setShowSettingsPrompt(false);
+      if (!apiEndpoint || !userId) return;
+
+      if (sentiment === 'negative' && changedSettingKey && settingOldValue !== undefined) {
+         const revertedSettings = { ...latestSettings, [changedSettingKey]: settingOldValue };
+         handleSettingsUpdate(revertedSettings, 'revert');
+         try {
+            await fetch(`${apiEndpoint}/users/${userId}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: { [changedSettingKey]: settingOldValue }, source: 'user_revert' })
+            });
+         } catch (e) {}
+      }
+
+      if (sentiment === 'positive' && latestSettings) {
+          try {
+              await fetch(`${apiEndpoint}/manual-settings/apply`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ userId, settings: latestSettings })
+             });
+          } catch (e) {}
+      }
+    },
+    [apiEndpoint, userId, latestSettings, settingsSource, changedSettingKey, settingOldValue, handleSettingsUpdate]
+  );
+
+  const openComponentFeedback = useCallback((componentId: string, type: ComponentFeedbackType, currentProps: any) => {
+    setActiveFeedbackComponent({ id: componentId, type, props: currentProps });
+  }, []);
+
+  const handleComponentFeedbackSubmit = useCallback(async (data: { issue: string; severity: number; comment?: string }) => {
+    if (!activeFeedbackComponent || !apiEndpoint || !userId) return;
+    try {
+      const payload = {
+        userId, componentId: activeFeedbackComponent.id, componentType: activeFeedbackComponent.type,
+        issue: data.issue, severity: data.severity, comment: data.comment,
+        context: { currentProfile: profile, componentProps: activeFeedbackComponent.props, timestamp: new Date().toISOString() }
+      };
+      const response = await fetch(`${apiEndpoint}/rl-feedback/component-issue`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (result.success && result.nextSuggestion) {
+          const suggestion = result.nextSuggestion;
+          const paramMap: Record<string, string> = {
+            'fontSize': 'font_size', 'targetSize': 'target_size', 'contrastMode': 'contrast_mode',
+            'elementSpacing': 'element_spacing', 'lineHeight': 'line_height'
+          };
+          handleSettingsUpdate({ [suggestion.parameter]: suggestion.suggestedValue }, 'ml', suggestion.confidence);
+      }
+      setActiveFeedbackComponent(null);
+    } catch (err) {}
+  }, [activeFeedbackComponent, apiEndpoint, userId, profile]);
 
   // DEV path: local mocks
   const loadFromMocks = useCallback(
@@ -206,7 +456,7 @@ export function AdaptiveProvider({
 
         const env = await mockFetchAuraEnvelope(effectiveUserId);
         setIsExtensionLoggedIn(isLoggedInUserId(effectiveUserId));
-        applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens);
+        applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens, handleProfileDiff);
       } catch (err) {
         console.error("[AURA] Failed to load personalization (mock)", err);
         setError("Failed to load personalization");
@@ -250,7 +500,7 @@ export function AdaptiveProvider({
       }
 
       const env = await bridge.getMlEnvelope(extUserId);
-      applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens);
+      applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens, handleProfileDiff);
     } catch (err) {
       console.error("[AURA] Extension path failed", err);
       setError("Failed to load personalization from extension");
@@ -478,6 +728,7 @@ export function AdaptiveProvider({
 
   const contextValue: AdaptiveContextValue = {
     userId,
+    sessionId,
     source,
     profile,
     tokens,
@@ -485,6 +736,10 @@ export function AdaptiveProvider({
     error,
     isExtensionInstalled,
     isExtensionLoggedIn,
+    apiEndpoint,
+    behaviorTracker,
+    submitFeedback,
+    openComponentFeedback,
 
     reload: async () => {
       if (simulateExtensionInstalled) {
@@ -498,7 +753,34 @@ export function AdaptiveProvider({
   return React.createElement(
     AdaptiveContext.Provider,
     { value: contextValue },
-    React.createElement(React.Fragment, null, extensionPrompt, children)
+    React.createElement(React.Fragment, null, 
+      extensionPrompt, 
+      showSettingsPrompt && React.createElement(MLFeedbackPrompt, {
+          userId: userId || "guest",
+          settingKey: changedSettingKey,
+          oldValue: settingOldValue,
+          newValue: latestSettings?.[changedSettingKey],
+          mlConfidence: mlConfidence,
+          source: settingsSource as 'ml' | 'manual' | 'trial',
+          apiEndpoint: apiEndpoint || "",
+          onFeedback: handleSettingsFeedback
+      }),
+      activeFeedbackComponent && React.createElement(ComponentFeedbackModal, {
+          componentId: activeFeedbackComponent.id,
+          componentType: activeFeedbackComponent.type,
+          currentProps: activeFeedbackComponent.props,
+          onClose: () => setActiveFeedbackComponent(null),
+          onSubmit: handleComponentFeedbackSubmit
+      }),
+      React.createElement(AdaptiveTempUserPrompt, {
+          userId: userId || initialUserId || "guest",
+          apiEndpoint: apiEndpoint || "",
+          tracker: behaviorTracker,
+          enabled: enableBehaviorTracking,
+      }),
+      enableBehaviorTracking && React.createElement(AdaptiveFeedback, null),
+      children
+    )
   );
 }
 

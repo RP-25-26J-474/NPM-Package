@@ -21,6 +21,19 @@ export { AdaptiveCheckbox } from "./components/AdaptiveCheckbox";
 export { AdaptiveSwitch } from "./components/AdaptiveSwitch";
 export { AdaptiveDialog } from "./components/AdaptiveDialog";
 
+export { BehaviorTracker } from "./BehaviorTracker";
+export { useRealtimeUIUpdates } from "./hooks/useRealtimeUIUpdates";
+export { useSettingsSync } from "./hooks/useSettingsSync";
+export { useTrialManager } from "./hooks/useTrialManager";
+export { AdaptiveChangeConfirmation } from "./components/AdaptiveChangeConfirmation";
+export { AdaptiveDifficultyDetector } from "./components/AdaptiveDifficultyDetector";
+export { AdaptiveFeedback } from "./components/AdaptiveFeedback";
+export { AdaptiveFeedbackPrompt } from "./components/AdaptiveFeedbackPrompt";
+export { AdaptiveRevert } from "./components/AdaptiveRevert";
+export { AdaptiveTempUserPrompt } from "./components/AdaptiveTempUserPrompt";
+export { ComponentFeedbackModal } from "./components/ComponentFeedbackModal";
+export { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPrompt";
+export { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
 export type {
   AuraProfileV2,
   AuraMlEnvelopeV2,

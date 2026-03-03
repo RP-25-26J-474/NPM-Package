@@ -189,34 +189,74 @@ export const deriveTokensFromProfile = (profile: AuraProfileV2): AuraTokens => {
 export const mockFetchAuraEnvelope = async (
   userId: string
 ): Promise<AuraMlEnvelopeV2> => {
-  await new Promise((r) => setTimeout(r, 150));
+  try {
+    const response = await fetch(`http://localhost:8000/users/${userId}/profile`);
+    if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.profile) {
+            return {
+                profile: data.profile,
+                diff: data.diff || { changed: [], old: null, new: data.profile.profile },
+                traces: []
+            };
+        }
+    }
+  } catch (err) {
+      console.warn("[AURA] Could not fetch live profile from backend, falling back to local defaults.", err);
+  }
 
-  // You can keep a couple of dev-only mocks here if you want,
-  // but ideally profiles move to the extension.
+  // Fallback to static mock if backend isn't reachable
+  await new Promise((r) => setTimeout(r, 150));
+  
   if (userId === "u_001") {
     return {
       profile: {
         user_id: "u_001",
         metadata: {
           origin: "user",
-          created_at: "2025-12-30T00:00:00Z",
-          confidence_overall: 0.85,
-          version: 1,
+          created_at: "2026-03-01T09:20:54.996765+00:00",
+          confidence_overall: 0.7631,
+          version: 6
         },
         profile: {
-          ...DEFAULT_GUEST_PROFILE,
-          theme: "dark",
-          contrast_mode: "high",
-          font_size: 20,
-          element_spacing_x: 14,
-          element_spacing_y: 12,
-          element_padding_x: 16,
-          element_padding_y: 14,
-          target_size: 30,
+          font_size: 17,
+          line_height: 1.695901820011972,
+          contrast_mode: "normal",
+          primary_color: "#1a73e8",
+          primary_color_content: "#ffffff",
+          secondary_color: "#1a73e8",
+          secondary_color_content: "#ffffff",
+          accent_color: "#e37400",
+          accent_color_content: "#ffffff",
+          theme: "light",
+          element_spacing_x: 7,
+          element_spacing_y: 4,
+          element_padding_x: 8,
+          element_padding_y: 8,
+          reduced_motion: true,
+          target_size: 32,
           tooltip_assist: true,
-          layout_simplification: true,
-        },
+          layout_simplification: true
+        }
       },
+      diff: {
+        changed: [
+          "font_size",
+          "line_height",
+          "target_size"
+        ],
+        new: {
+          font_size: 17,
+          line_height: 1.695901820011972,
+          target_size: 32
+        },
+        old: {
+          font_size: 11,
+          line_height: 1.6,
+          target_size: 28
+        }
+      },
+      traces: []
     };
   }
 

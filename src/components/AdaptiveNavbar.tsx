@@ -32,6 +32,8 @@ type NavbarCtx = {
   tokens: any;
   simplify: boolean;
   heightPx: number;
+  openComponentFeedback?: any;
+  behaviorTracker?: any;
 };
 
 const NavbarContext = createContext<NavbarCtx | null>(null);
@@ -55,7 +57,7 @@ function useNavbarCtx(): NavbarCtx {
 /* ===================== Root ===================== */
 
 function AdaptiveNavbarRoot(props: AdaptiveNavbarProps) {
-  const { tokens } = useAdaptive();
+  const { tokens, openComponentFeedback, behaviorTracker } = useAdaptive();
   const { colors, spacing, typography, controls, flags } = tokens;
 
   const sticky = props.sticky === true;
@@ -95,7 +97,7 @@ function AdaptiveNavbarRoot(props: AdaptiveNavbarProps) {
 
   const classNameProp = props.className === undefined ? "" : props.className;
 
-  const ctx: NavbarCtx = { tokens, simplify, heightPx };
+  const ctx: NavbarCtx = { tokens, simplify, heightPx, openComponentFeedback, behaviorTracker };
 
   return React.createElement(
     NavbarContext.Provider,
@@ -174,7 +176,7 @@ export interface AdaptiveNavbarItemProps extends AdaptiveComponentProps {
 }
 
 function AdaptiveNavbarItem(props: AdaptiveNavbarItemProps) {
-  const { tokens, heightPx } = useNavbarCtx();
+  const { tokens, heightPx, openComponentFeedback, behaviorTracker } = useNavbarCtx();
   const { colors, typography, spacing, controls, flags } = tokens;
 
   const asTag = props.as === undefined ? "a" : props.as;
@@ -215,13 +217,27 @@ function AdaptiveNavbarItem(props: AdaptiveNavbarItemProps) {
     "aria-current": active ? "page" : undefined,
   };
 
+  const clickHandler = (e: any) => {
+      const elId = (props as any).id || "nav-item-" + Math.random().toString(36).substr(2, 5);
+      if (e.altKey && openComponentFeedback) {
+          e.preventDefault();
+          e.stopPropagation();
+          openComponentFeedback(elId, 'button', { text: (props as any).children });
+          return;
+      }
+      if (behaviorTracker?.trackInteraction) {
+          behaviorTracker.trackInteraction(elId, 'click', { type: 'nav-item' });
+      }
+      if (props.onClick) props.onClick(e);
+  };
+
   if (asTag === "a") {
     commonProps.href = disabled ? undefined : props.href;
-    commonProps.onClick = disabled ? undefined : props.onClick;
+    commonProps.onClick = disabled ? undefined : clickHandler;
   } else {
     commonProps.type = "button";
     commonProps.disabled = disabled;
-    commonProps.onClick = disabled ? undefined : props.onClick;
+    commonProps.onClick = disabled ? undefined : clickHandler;
   }
 
   return React.createElement(asTag, commonProps as any, (props as any).children);
