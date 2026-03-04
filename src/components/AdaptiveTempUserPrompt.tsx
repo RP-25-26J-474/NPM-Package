@@ -34,7 +34,7 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
       if (metrics.clickCount < 5) return;
 
       try {
-        const response = await fetch(`${apiEndpoint}/temp-user/check`, {
+        const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/api/temp-user/check`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

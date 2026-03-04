@@ -607,11 +607,11 @@ export class BehaviorTracker {
       if (synchronous && typeof navigator !== 'undefined' && navigator.sendBeacon) {
         // Use sendBeacon for synchronous send on page unload
         const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-        navigator.sendBeacon(`${this.config.apiEndpoint}/behavior`, blob);
+        navigator.sendBeacon(`${this.config.apiEndpoint}/api/behavior`, blob);
         this.log('Metrics sent via sendBeacon');
       } else {
         // Normal async send
-        const response = await fetch(`${this.config.apiEndpoint}/behavior`, {
+        const response = await fetch(`${this.config.apiEndpoint}/api/behavior`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

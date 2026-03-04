@@ -151,8 +151,9 @@ function applyEnvelope(
   setProfile(inner.profile);
   setTokens(deriveTokensFromProfile(inner.profile));
   
-  if (onDiffDetected && env.diff && env.diff.changed && env.diff.changed.length > 0) {
-      onDiffDetected(env.diff);
+  const diffData = env.profile_changes || env.diff;
+  if (onDiffDetected && diffData && diffData.changed && diffData.changed.length > 0) {
+      onDiffDetected(diffData);
   }
 }
 
@@ -232,18 +233,40 @@ export function AdaptiveProvider({
     }
   }, [enableBehaviorTracking, apiEndpoint, initialUserId, debugMode]);
 
-  const [showSettingsPrompt, setShowSettingsPrompt] = useState(false);
+  const [pendingDiffs, setPendingDiffs] = useState<{key: string; oldVal: any; newVal: any}[]>([]);
+  const pendingDiffsRef = useRef(pendingDiffs);
+  useEffect(() => { pendingDiffsRef.current = pendingDiffs; }, [pendingDiffs]);
+
+  const [mlChangedSettings, setMlChangedSettings] = useState<{key: string; oldVal: any; newVal: any}[]>([]);
   const [latestSettings, setLatestSettings] = useState<any>(null);
   const [settingsSource, setSettingsSource] = useState<'manual' | 'ml' | 'trial'>('manual');
   const [mlConfidence, setMlConfidence] = useState<number>(0.5);
-  const [changedSettingKey, setChangedSettingKey] = useState<string>('');
-  const [settingOldValue, setSettingOldValue] = useState<any>(null);
 
   const [activeFeedbackComponent, setActiveFeedbackComponent] = useState<{
     id: string;
     type: ComponentFeedbackType;
     props: any;
   } | null>(null);
+
+  // Listen for Anomaly events to trigger ML feedback queue
+  useEffect(() => {
+     if (typeof window === 'undefined') return;
+
+     const handleAnomaly = (e: any) => {
+        setMlChangedSettings(prev => {
+            if (prev.length === 0) return prev;
+            if (pendingDiffsRef.current.length > 0) return prev; // Already asking
+            
+            // Move the first item to pendingDiffs
+            const [first, ...rest] = prev;
+            setPendingDiffs([first]);
+            return rest;
+        });
+     };
+
+     window.addEventListener('aura-anomaly', handleAnomaly);
+     return () => window.removeEventListener('aura-anomaly', handleAnomaly);
+  }, []);
 
   const {
     activeTrial,
@@ -340,25 +363,29 @@ export function AdaptiveProvider({
     setLatestSettings(settings);
     setSettingsSource(source as 'manual' | 'ml' | 'trial');
     setMlConfidence(mlConf || 0.5);
-    setChangedSettingKey(primaryChangedKey);
-    setSettingOldValue(oldVal);
     
-    setShowSettingsPrompt(source === 'ml' && isSignificant);
+    if (source === 'ml' && isSignificant) {
+        setMlChangedSettings(prev => [...prev, {
+            key: primaryChangedKey,
+            oldVal: oldVal,
+            newVal: settings[primaryChangedKey] !== undefined ? settings[primaryChangedKey] : targetSizeValue
+        }]);
+    }
   }, [isSignificantDeviation]);
 
   // Handle Diff from Extension/Backend Profile Load
   const handleProfileDiff = useCallback((diff: any) => {
       if (!diff || !diff.changed || diff.changed.length === 0) return;
       
-      const firstChange = diff.changed[0];
-      const oldVal = diff.old ? diff.old[firstChange] : undefined;
-      const newVal = diff.new ? diff.new[firstChange] : undefined;
+      const newDiffItems = diff.changed.map((key: string) => ({
+          key,
+          oldVal: diff.old ? diff.old[key] : undefined,
+          newVal: diff.new ? diff.new[key] : undefined,
+      }));
       
-      setLatestSettings(diff.new);
+      setLatestSettings(diff.new || {});
       setSettingsSource('ml');
-      setChangedSettingKey(firstChange);
-      setSettingOldValue(oldVal);
-      setShowSettingsPrompt(true);
+      setMlChangedSettings(prev => [...prev, ...newDiffItems]);
   }, []);
 
   useSettingsSync({
@@ -388,32 +415,35 @@ export function AdaptiveProvider({
 
   const handleSettingsFeedback = useCallback(
     async (sentiment: 'positive' | 'negative' | 'neutral', comment?: string) => {
-      setShowSettingsPrompt(false);
-      if (!apiEndpoint || !userId) return;
+      // Dequeue the current prompt
+      const currentDiff = pendingDiffs[0];
+      setPendingDiffs(prev => prev.slice(1));
 
-      if (sentiment === 'negative' && changedSettingKey && settingOldValue !== undefined) {
-         const revertedSettings = { ...latestSettings, [changedSettingKey]: settingOldValue };
+      if (!apiEndpoint || !userId || !currentDiff) return;
+
+      if (sentiment === 'negative' && currentDiff.oldVal !== undefined) {
+         const revertedSettings = { ...latestSettings, [currentDiff.key]: currentDiff.oldVal };
          handleSettingsUpdate(revertedSettings, 'revert');
          try {
-            await fetch(`${apiEndpoint}/users/${userId}/settings`, {
+            await fetch(`${apiEndpoint}/api/users/${userId}/settings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ settings: { [changedSettingKey]: settingOldValue }, source: 'user_revert' })
+                body: JSON.stringify({ settings: { [currentDiff.key]: currentDiff.oldVal }, source: 'user_revert' })
             });
          } catch (e) {}
       }
 
       if (sentiment === 'positive' && latestSettings) {
           try {
-              await fetch(`${apiEndpoint}/manual-settings/apply`, {
+              await fetch(`${apiEndpoint}/api/users/${userId}/settings`, {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ userId, settings: latestSettings })
+                 body: JSON.stringify({ settings: { [currentDiff.key]: currentDiff.newVal }, source: 'ml_suggestion_accepted' })
              });
           } catch (e) {}
       }
     },
-    [apiEndpoint, userId, latestSettings, settingsSource, changedSettingKey, settingOldValue, handleSettingsUpdate]
+    [apiEndpoint, userId, latestSettings, pendingDiffs, handleSettingsUpdate]
   );
 
   const openComponentFeedback = useCallback((componentId: string, type: ComponentFeedbackType, currentProps: any) => {
@@ -424,24 +454,34 @@ export function AdaptiveProvider({
     if (!activeFeedbackComponent || !apiEndpoint || !userId) return;
     try {
       const payload = {
-        userId, componentId: activeFeedbackComponent.id, componentType: activeFeedbackComponent.type,
-        issue: data.issue, severity: data.severity, comment: data.comment,
-        context: { currentProfile: profile, componentProps: activeFeedbackComponent.props, timestamp: new Date().toISOString() }
+        userId, 
+        componentId: activeFeedbackComponent.id, 
+        componentType: activeFeedbackComponent.type,
+        issue: data.issue, 
+        severity: data.severity, 
+        comment: data.comment,
+        context: { 
+          currentProfile: profile, 
+          componentProps: activeFeedbackComponent.props, 
+          timestamp: new Date().toISOString() 
+        }
       };
-      const response = await fetch(`${apiEndpoint}/rl-feedback/component-issue`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+
+      const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/api/rl-feedback/component-issue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
+
       const result = await response.json();
       if (result.success && result.nextSuggestion) {
           const suggestion = result.nextSuggestion;
-          const paramMap: Record<string, string> = {
-            'fontSize': 'font_size', 'targetSize': 'target_size', 'contrastMode': 'contrast_mode',
-            'elementSpacing': 'element_spacing', 'lineHeight': 'line_height'
-          };
-          handleSettingsUpdate({ [suggestion.parameter]: suggestion.suggestedValue }, 'ml', suggestion.confidence);
+          handleSettingsUpdate({ [suggestion.parameter]: suggestion.suggestedValue }, 'ml', suggestion.confidence || 0.85);
       }
       setActiveFeedbackComponent(null);
-    } catch (err) {}
+    } catch (err) {
+      console.error("[AdaptiveProvider] Error submitting component feedback:", err);
+    }
   }, [activeFeedbackComponent, apiEndpoint, userId, profile]);
 
   // DEV path: local mocks
@@ -755,16 +795,17 @@ export function AdaptiveProvider({
     { value: contextValue },
     React.createElement(React.Fragment, null, 
       extensionPrompt, 
-      showSettingsPrompt && React.createElement(MLFeedbackPrompt, {
+      pendingDiffs.length > 0 ? React.createElement(MLFeedbackPrompt, {
+          key: pendingDiffs[0].key, // Forces component to remount so the auto-hide timer resets
           userId: userId || "guest",
-          settingKey: changedSettingKey,
-          oldValue: settingOldValue,
-          newValue: latestSettings?.[changedSettingKey],
+          settingKey: pendingDiffs[0].key,
+          oldValue: pendingDiffs[0].oldVal,
+          newValue: pendingDiffs[0].newVal,
           mlConfidence: mlConfidence,
           source: settingsSource as 'ml' | 'manual' | 'trial',
           apiEndpoint: apiEndpoint || "",
           onFeedback: handleSettingsFeedback
-      }),
+      }) : null,
       activeFeedbackComponent && React.createElement(ComponentFeedbackModal, {
           componentId: activeFeedbackComponent.id,
           componentType: activeFeedbackComponent.type,

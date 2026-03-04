@@ -55,30 +55,30 @@ export function MLFeedbackPrompt({
       console.log('[AURA] 🎯 Sending feedback to RL model:', feedback);
 
       // Use keepalive to ensure request completes even if component unmounts
-      const response = await fetch(`${apiEndpoint}/rl-feedback/submit`, {
+      const response = await fetch(`${apiEndpoint}/api/users/${userId}/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         keepalive: true, 
         body: JSON.stringify({
-          userId,
-          settingKey,
-          oldValue,
-          newValue,
-          feedback,
-          source,
-          mlConfidence,
-          metadata: {
-            userAgent: navigator.userAgent,
-            timestamp: new Date().toISOString()
-          }
+          parameter: settingKey,
+          currentValue: newValue,
+          previousValue: oldValue,
+          feedback: {
+            type: feedback,
+            rating: feedback === 'positive' ? 5 : feedback === 'negative' ? 1 : 3,
+            accepted: feedback !== 'negative'
+          },
+          context: {
+            source,
+            deviceType: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'
+          },
+          state: {} // Fallback empty state
         })
       });
 
       const data = await response.json();
 
-      console.log('[AURA] ✅ RL model trained successfully:', data);
-      console.log('   Reward:', data.reward);
-      console.log('   Q-value:', data.rlUpdate?.qValue);
+      console.log('[AURA] ✅ RL model feedback passed to Backend:', data);
 
     } catch (error) {
       console.error('[AURA] ❌ Error sending feedback:', error);

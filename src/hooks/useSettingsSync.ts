@@ -74,7 +74,7 @@ export function useSettingsSync({
     }
 
     try {
-      const url = `${apiEndpoint}/settings-events/${userId}`;
+      const url = `${apiEndpoint}/api/settings-events/${userId}`;
       console.log('[AURA SSE] Connecting to:', url);
 
       const eventSource = new EventSource(url);

@@ -60,6 +60,12 @@ export interface AuraMlEnvelopeV2 {
     old?: any;
     new?: any;
   };
+  
+  profile_changes?: {
+    changed?: string[];
+    old?: any;
+    new?: any;
+  };
 
   traces?: any[];
 }
