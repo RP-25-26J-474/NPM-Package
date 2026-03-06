@@ -1,0 +1,48 @@
+{
+    "user_id": "u_001",
+    "metadata": {
+      "origin": "user",
+      "created_at": "2026-03-01T09:20:54.996765+00:00",
+      "confidence_overall": 0.7631,
+      "version": 6
+    },
+    "profile": {
+      "font_size": 17,
+      "line_height": 1.695901820011972,
+      "contrast_mode": "normal",
+      "primary_color": "#1a73e8",
+      "primary_color_content": "#ffffff",
+      "secondary_color": "#1a73e8",
+      "secondary_color_content": "#ffffff",
+      "accent_color": "#e37400",
+      "accent_color_content": "#ffffff",
+      "theme": "light",
+      "element_spacing_x": 7,
+      "element_spacing_y": 4,
+      "element_padding_x": 8,
+      "element_padding_y": 8,
+      "reduced_motion": true,
+      "target_size": 32,
+      "tooltip_assist": true,
+      "layout_simplification": true
+    },
+    "profile_changes": {
+      "changed": [
+        "font_size",
+        "line_height",
+        "target_size"
+      ],
+      "new": {
+        "font_size": 17,
+        "line_height": 1.695901820011972,
+        "target_size": 32
+      },
+      "old": {
+        "font_size": 11,
+        "line_height": 1.6,
+        "target_size": 28
+      }
+    },
+    "sourceType": "adaptive",
+    "available": true
+  }
