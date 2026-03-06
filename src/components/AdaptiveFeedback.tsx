@@ -3,7 +3,7 @@ import React, { useEffect, useState, type CSSProperties } from "react";
 import { useAdaptive } from "../AdaptiveProvider";
 
 export function AdaptiveFeedback() {
-  const { behaviorTracker, userId, apiEndpoint, profile } = useAdaptive();
+  const { behaviorTracker, userId, apiEndpoint, profile, applySettings } = useAdaptive();
   
   // State for the new flow
   const [step, setStep] = useState<"idle" | "validation" | "fetching" | "suggestion">("idle");
@@ -93,33 +93,60 @@ export function AdaptiveFeedback() {
 
     const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
 
-    try {
-      // Map RL params (app.py) to API/Profile params (types.ts)
+    // Helper to build a local suggestion without needing the RL backend
+    const buildLocalSuggestion = (p: string): { action: any; reasoning: { recommendation: string }; success: boolean } => {
       const paramMap: Record<string, string> = {
-          'fontSize': 'font_size',
-          'targetSize': 'target_size',
-          'contrastMode': 'contrast_mode',
-          'elementSpacing': 'element_spacing',
-          'layoutSimplification': 'layout_simplification',
-          'reducedMotion': 'reduced_motion',
-          'theme': 'theme'
+        'fontSize': 'font_size', 'targetSize': 'target_size', 'contrastMode': 'contrast_mode',
+        'elementSpacing': 'element_spacing_y', 'layoutSimplification': 'layout_simplification',
+        'reducedMotion': 'reduced_motion', 'theme': 'theme'
       };
-      
+      const apiP = paramMap[p] || p;
+      const cur = profile?.[apiP as keyof typeof profile];
+      let action: any;
+      let label: string;
+      switch (p) {
+        case 'targetSize':
+          action = Math.min(56, (typeof cur === 'number' ? cur : 32) + 8);
+          label = `Increase touch target size to ${action}px`; break;
+        case 'fontSize':
+          action = Math.min(22, (typeof cur === 'number' ? cur : 16) + 2);
+          label = `Increase font size to ${action}px`; break;
+        case 'contrastMode':
+          action = 'high'; label = 'Enable high contrast mode'; break;
+        case 'elementSpacing':
+          action = Math.min(24, (typeof cur === 'number' ? cur : 10) + 4);
+          label = `Increase element spacing to ${action}px`; break;
+        case 'reducedMotion':
+          action = true; label = 'Enable reduced motion'; break;
+        case 'layoutSimplification':
+          action = true; label = 'Simplify the layout'; break;
+        default:
+          action = cur; label = `Adjust ${p}`;
+      }
+      return { action, reasoning: { recommendation: label }, success: true };
+    };
+
+    try {
+      const paramMap: Record<string, string> = {
+          'fontSize': 'font_size', 'targetSize': 'target_size', 'contrastMode': 'contrast_mode',
+          'elementSpacing': 'element_spacing', 'layoutSimplification': 'layout_simplification',
+          'reducedMotion': 'reduced_motion', 'theme': 'theme'
+      };
       const apiParam = paramMap[param] || param;
       const currentAction = profile?.[apiParam as keyof typeof profile] || "unknown";
 
-      // 1. Send Negative Feedback
-      await fetch(`${backendUrl}/rl/feedback`, {
+      // 1. Send Negative Feedback (fire-and-forget – don't block on it)
+      fetch(`${backendUrl}/rl/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userId || "guest",
           parameter: param,
-          action: currentAction, // The current state is what caused the issue
+          action: currentAction,
           reward: -0.5,
           metadata: { source: "user_validation", anomaly: anomaly.type },
         }),
-      });
+      }).catch(() => {});
 
       // 2. Ask RL for a Solution
       const response = await fetch(`${backendUrl}/rl/choose-action`, {
@@ -128,13 +155,8 @@ export function AdaptiveFeedback() {
         body: JSON.stringify({
           userId: userId || "guest",
           parameter: param,
-          context: { 
-            lastFeedback: "negative",
-            avoidCurrent: true // Explicitly tell RL to change something
-          },
-          state: {
-            [param]: profile?.[param as keyof typeof profile] // Send current value if available
-          }
+          context: { lastFeedback: "negative", avoidCurrent: true },
+          state: { [param]: profile?.[param as keyof typeof profile] }
         }),
       });
       
@@ -143,13 +165,15 @@ export function AdaptiveFeedback() {
         setSuggestion(data);
         setStep("suggestion");
       } else {
-        console.error("RL failed to suggest action");
-        setStep("idle");
+        // RL returned no valid action – use local fallback
+        setSuggestion(buildLocalSuggestion(param));
+        setStep("suggestion");
       }
 
     } catch (e) {
-      console.error("Error in feedback loop:", e);
-      setStep("idle");
+      // Backend offline – build suggestion locally so the flow still works
+      setSuggestion(buildLocalSuggestion(param));
+      setStep("suggestion");
     }
   };
 
@@ -184,63 +208,43 @@ export function AdaptiveFeedback() {
   const handleApplySuggestion = async () => {
     if (!suggestion || !targetParam) return;
 
-    const reportApi = apiEndpoint || process.env.AURA_RL_BACKEND_API || "http://localhost:5000/api";
-    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
+    // targetParam is already camelCase (e.g. 'targetSize', 'fontSize') from the RL engine.
+    // handleSettingsUpdate reads camelCase keys — do NOT convert to snake_case here.
+    // Map contrastMode → contrast because handleSettingsUpdate uses settings.contrast
+    const rlToCamel: Record<string, string> = { contrastMode: 'contrast', elementSpacing: 'spacing' };
+    const settingKey = rlToCamel[targetParam] ?? targetParam;
+    const settingPayload: Record<string, any> = { [settingKey]: suggestion.action };
 
-    try {
-      // 1. Apply Setting
-      const settingPayload: any = {};
-      
-      let apiParam = targetParam;
-      // Map RL params (app.py) to API/Profile params (types.ts)
-      const paramMap: Record<string, string> = {
-          'fontSize': 'font_size',
-          'targetSize': 'target_size',
-          'contrastMode': 'contrast_mode',
-          'elementSpacing': 'element_spacing',
-          'layoutSimplification': 'layout_simplification',
-          'reducedMotion': 'reduced_motion',
-          'theme': 'theme'
-      };
-      
-      if (paramMap[targetParam]) {
-          apiParam = paramMap[targetParam];
-      }
-      
-      settingPayload[apiParam] = suggestion.action;
-
-      await fetch(`${reportApi}/manual-settings/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userId || "guest",
-          settings: settingPayload,
-        }),
-      });
-
-      // 2. Send Positive Feedback for the NEW action
-      await fetch(`${backendUrl}/rl/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userId || "guest",
-          parameter: targetParam,
-          action: suggestion.action,
-          reward: 1.0,
-          metadata: { source: "ai_suggestion_accepted" },
-        }),
-      });
-
-      alert(`Applied AI Suggestion: ${suggestion.action}`);
-      setStep("idle");
-      setAnomaly(null);
-      setSuggestion(null);
-
-    } catch (e) {
-      console.error("Failed to apply suggestion:", e);
-      alert("Failed to apply suggestion");
-      setStep("idle");
+    // 1. Apply immediately via context (works offline, no backend required)
+    if (applySettings) {
+      applySettings(settingPayload, 'user');
     }
+
+    // 2. Fire-and-forget server calls (non-blocking)
+    const reportApi = apiEndpoint || "http://localhost:5000/api";
+    const backendUrl = "http://localhost:8000";
+
+    fetch(`${reportApi}/manual-settings/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: userId || "guest", settings: settingPayload }),
+    }).catch(() => {});
+
+    fetch(`${backendUrl}/rl/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: userId || "guest",
+        parameter: targetParam,
+        action: suggestion.action,
+        reward: 1.0,
+        metadata: { source: "ai_suggestion_accepted" },
+      }),
+    }).catch(() => {});
+
+    setStep("idle");
+    setAnomaly(null);
+    setSuggestion(null);
   };
 
   // --- RENDER ---

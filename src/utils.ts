@@ -10,8 +10,8 @@ import type {
 // Minimal MOCK (dev-only fallback)
 // -------------------------------
 export const DEFAULT_GUEST_PROFILE: AuraProfileV2 = {
-  font_size: 10,
-  line_height: 1.15,
+  font_size: 16,
+  line_height: 1.5,
   contrast_mode: "normal",
 
   primary_color: "#2563eb",
@@ -25,13 +25,13 @@ export const DEFAULT_GUEST_PROFILE: AuraProfileV2 = {
 
   theme: "light",
 
-  element_spacing_x: 10,
-  element_spacing_y: 10,
+  element_spacing_x: 12,
+  element_spacing_y: 12,
   element_padding_x: 12,
   element_padding_y: 10,
 
   reduced_motion: false,
-  target_size: 14,
+  target_size: 44,
   tooltip_assist: false,
   layout_simplification: false,
 };
@@ -189,26 +189,7 @@ export const deriveTokensFromProfile = (profile: AuraProfileV2): AuraTokens => {
 export const mockFetchAuraEnvelope = async (
   userId: string
 ): Promise<AuraMlEnvelopeV2> => {
-  try {
-    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
-    const response = await fetch(`${backendUrl}/users/${userId}/profile`);
-    if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.profile) {
-            return {
-                profile: data.profile,
-                diff: data.diff || { changed: [], old: null, new: data.profile.profile },
-                traces: []
-            };
-        }
-    }
-  } catch (err) {
-      console.warn("[AURA] Could not fetch live profile from backend, falling back to local defaults.", err);
-  }
-
-  // Fallback to static mock if backend isn't reachable
-  await new Promise((r) => setTimeout(r, 150));
-  
+  // ── Demo profile: offline-first, no backend needed ──────────────────────
   if (userId === "u_001") {
     return {
       profile: {
@@ -259,6 +240,24 @@ export const mockFetchAuraEnvelope = async (
       },
       traces: []
     };
+  }
+
+  // For non-demo users, try the live backend first
+  try {
+    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
+    const response = await fetch(`${backendUrl}/users/${userId}/profile`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.profile) {
+        return {
+          profile: data.profile,
+          diff: data.diff || { changed: [], old: null, new: data.profile.profile },
+          traces: []
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[AURA] Could not fetch live profile from backend, falling back to local defaults.", err);
   }
 
   return DEFAULT_GUEST_ENVELOPE;

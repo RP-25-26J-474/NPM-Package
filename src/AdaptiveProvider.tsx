@@ -30,6 +30,7 @@ import { DirectionalFeedbackPrompt } from "./components/DirectionalFeedbackPromp
 import { AdaptiveTempUserPrompt } from "./components/AdaptiveTempUserPrompt";
 import { AdaptiveFeedback } from './components/AdaptiveFeedback';
 import { useSettingsSync } from "./hooks/useSettingsSync";
+import { useUserSettingsStore } from "./hooks/useUserSettingsStore";
 import { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
 import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components/ComponentFeedbackModal";
 
@@ -217,6 +218,10 @@ export function AdaptiveProvider({
     useState<boolean>(false);
   const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
 
+  // Used to persist settings to localStorage from within handleSettingsUpdate
+  // (storeUpdateSettings is set after useUserSettingsStore is called below)
+  const storeUpdateRef = useRef<((patch: any, src?: string) => void) | null>(null);
+
   useEffect(() => {
     if (enableBehaviorTracking) {
       const tracker = new BehaviorTracker({
@@ -313,33 +318,35 @@ export function AdaptiveProvider({
     }
     
     let targetSizeValue = currentProfile?.target_size || 44;
-    if (settings.targetSize) {
-      if (typeof settings.targetSize === 'number') targetSizeValue = settings.targetSize;
-      else if (typeof settings.targetSize === 'string') {
-        const parsed = parseInt(settings.targetSize, 10);
+    const rawTargetSize = settings.targetSize ?? settings.target_size;
+    if (rawTargetSize !== undefined) {
+      if (typeof rawTargetSize === 'number') targetSizeValue = rawTargetSize;
+      else if (typeof rawTargetSize === 'string') {
+        const parsed = parseInt(rawTargetSize, 10);
         targetSizeValue = isNaN(parsed) ? targetSizeValue : parsed;
       }
     }
     
+    // Accept both camelCase (from local feedback) and snake_case (from SSE/server payloads)
     const updatedProfile: AuraProfileV2 = {
-      font_size: settings.fontSize || currentProfile?.font_size || 16,
-      line_height: settings.lineHeight || currentProfile?.line_height || 1.5,
-      contrast_mode: settings.contrast || currentProfile?.contrast_mode || 'normal',
-      primary_color: settings.primaryColor || currentProfile?.primary_color || '#007bff',
-      primary_color_content: currentProfile?.primary_color_content || '#ffffff',
-      secondary_color: settings.secondaryColor || currentProfile?.secondary_color || '#6c757d',
-      secondary_color_content: currentProfile?.secondary_color_content || '#ffffff',
-      accent_color: settings.accentColor || currentProfile?.accent_color || '#28a745',
-      accent_color_content: currentProfile?.accent_color_content || '#ffffff',
+      font_size: settings.fontSize || settings.font_size || currentProfile?.font_size || 16,
+      line_height: settings.lineHeight || settings.line_height || currentProfile?.line_height || 1.5,
+      contrast_mode: settings.contrast || settings.contrast_mode || currentProfile?.contrast_mode || 'normal',
+      primary_color: settings.primaryColor || settings.primary_color || currentProfile?.primary_color || '#007bff',
+      primary_color_content: settings.primary_color_content || currentProfile?.primary_color_content || '#ffffff',
+      secondary_color: settings.secondaryColor || settings.secondary_color || currentProfile?.secondary_color || '#6c757d',
+      secondary_color_content: settings.secondary_color_content || currentProfile?.secondary_color_content || '#ffffff',
+      accent_color: settings.accentColor || settings.accent_color || currentProfile?.accent_color || '#28a745',
+      accent_color_content: settings.accent_color_content || currentProfile?.accent_color_content || '#ffffff',
       theme: settings.theme || currentProfile?.theme || 'light',
-      reduced_motion: settings.reducedMotion ?? currentProfile?.reduced_motion ?? false,
-      element_spacing_x: settings.spacing || currentProfile?.element_spacing_x || 10,
-      element_spacing_y: settings.spacing || currentProfile?.element_spacing_y || 10,
-      element_padding_x: currentProfile?.element_padding_x || 12,
-      element_padding_y: currentProfile?.element_padding_y || 12,
+      reduced_motion: settings.reducedMotion ?? settings.reduced_motion ?? currentProfile?.reduced_motion ?? false,
+      element_spacing_x: settings.spacing || settings.element_spacing_x || currentProfile?.element_spacing_x || 10,
+      element_spacing_y: settings.spacing || settings.element_spacing_y || currentProfile?.element_spacing_y || 10,
+      element_padding_x: settings.element_padding_x || currentProfile?.element_padding_x || 12,
+      element_padding_y: settings.element_padding_y || currentProfile?.element_padding_y || 12,
       target_size: targetSizeValue,
-      tooltip_assist: settings.tooltipAssist ?? currentProfile?.tooltip_assist ?? false,
-      layout_simplification: settings.layoutSimplification ?? currentProfile?.layout_simplification ?? false,
+      tooltip_assist: settings.tooltipAssist ?? settings.tooltip_assist ?? currentProfile?.tooltip_assist ?? false,
+      layout_simplification: settings.layoutSimplification ?? settings.layout_simplification ?? currentProfile?.layout_simplification ?? false,
     };
 
     setProfile(updatedProfile);
@@ -371,6 +378,12 @@ export function AdaptiveProvider({
             newVal: settings[primaryChangedKey] !== undefined ? settings[primaryChangedKey] : targetSizeValue
         }]);
     }
+
+    // Persist the update to localStorage and POST to server.
+    // Skip when source is 'sse:...' (update arrived from SSE) to prevent echo loop.
+    if (storeUpdateRef.current && source !== 'revert' && !source.startsWith('sse:')) {
+      storeUpdateRef.current(updatedProfile, source);
+    }
   }, [isSignificantDeviation]);
 
   // Handle Diff from Extension/Backend Profile Load
@@ -392,11 +405,38 @@ export function AdaptiveProvider({
     userId: userId || initialUserId || 'guest',
     apiEndpoint: apiEndpoint || '',
     enabled: !!apiEndpoint && !!userId,
-    onSettingsUpdate: handleSettingsUpdate,
+    // Prefix source with 'sse:' so handleSettingsUpdate skips the server re-POST
+    onSettingsUpdate: (settings, sseSource) => handleSettingsUpdate(settings, `sse:${sseSource || 'unknown'}`),
     onConnect: () => {},
     onError: () => {},
   });
 
+  // ── Settings persistence + EOD ML sync ────────────────────────────────────
+  // useUserSettingsStore bridges: extension → localStorage → server → ML engine
+  const { updateSettings: storeUpdateSettings, triggerEodSync } = useUserSettingsStore({
+    userId: userId || initialUserId || 'guest',
+    apiEndpoint: apiEndpoint || '',
+    onSettingsLoaded: (profile, src) => {
+      // When the store hydrates from extension / cache, apply to UI if we
+      // haven't already received a profile from the extension bridge.
+      if (src === 'extension' || src === 'dashboard') {
+        handleSettingsUpdate(profile, src);
+      }
+    },
+    onSettingsUpdated: (_profile, _src) => {
+      // Settings were persisted to localStorage and POSTed to server.
+      // The SSE stream will propagate the change to other open tabs.
+    },
+    onEodSyncComplete: ({ sent }) => {
+      console.log(`[AURA EOD] ✅ ${sent} setting change(s) sent to ML engine.`);
+    },
+  });
+  // Keep ref in sync so handleSettingsUpdate can call storeUpdateSettings
+  useEffect(() => {
+    storeUpdateRef.current = (patch: any, src?: string) => {
+      storeUpdateSettings(patch as any, src as any);
+    };
+  }, [storeUpdateSettings]);
   const submitFeedback = useCallback(
     async (feedback: AdaptiveFeedbackPayload): Promise<{ success: boolean }> => {
       if (!apiEndpoint || !userId || !sessionId) return { success: false };
@@ -425,7 +465,7 @@ export function AdaptiveProvider({
          const revertedSettings = { ...latestSettings, [currentDiff.key]: currentDiff.oldVal };
          handleSettingsUpdate(revertedSettings, 'revert');
          try {
-            await fetch(`${apiEndpoint}/api/users/${userId}/settings`, {
+            await fetch(`${apiEndpoint}/settings/${userId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ settings: { [currentDiff.key]: currentDiff.oldVal }, source: 'user_revert' })
@@ -435,7 +475,7 @@ export function AdaptiveProvider({
 
       if (sentiment === 'positive' && latestSettings) {
           try {
-              await fetch(`${apiEndpoint}/api/users/${userId}/settings`, {
+              await fetch(`${apiEndpoint}/settings/${userId}`, {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({ settings: { [currentDiff.key]: currentDiff.newVal }, source: 'ml_suggestion_accepted' })
@@ -451,45 +491,78 @@ export function AdaptiveProvider({
   }, []);
 
   const handleComponentFeedbackSubmit = useCallback(async (data: { issue: string; severity: number; comment?: string }) => {
-    if (!activeFeedbackComponent || !apiEndpoint || !userId) return;
-    try {
-      const payload = {
-        userId, 
-        componentId: activeFeedbackComponent.id, 
-        componentType: activeFeedbackComponent.type,
-        issue: data.issue, 
-        severity: data.severity, 
-        comment: data.comment,
-        context: { 
-          currentProfile: profile, 
-          componentProps: activeFeedbackComponent.props, 
-          timestamp: new Date().toISOString() 
-        }
-      };
+    if (!activeFeedbackComponent) return;
 
-      const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/api/rl-feedback/component-issue`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      if (result.success && result.nextSuggestion) {
-          const suggestion = result.nextSuggestion;
-          handleSettingsUpdate({ [suggestion.parameter]: suggestion.suggestedValue }, 'ml', suggestion.confidence || 0.85);
-          
-          // Trigger the ML feedback prompt immediately to see if this suggestion actually fixed their complaint!
-          setPendingDiffs([{
-             key: suggestion.parameter,
-             oldVal: suggestion.currentValue,
-             newVal: suggestion.suggestedValue
-          }]);
+    // ── Local suggestion map (works 100% offline) ─────────────────────────
+    // Keys MUST match what handleSettingsUpdate reads (camelCase)
+    const buildLocalComponentSuggestion = (issue: string, compType: ComponentFeedbackType) => {
+      const cur = profileRef.current;
+      switch (issue) {
+        case 'too_small':
+          return compType === 'text'
+            ? { parameter: 'fontSize',   suggestedValue: Math.min(22, (cur?.font_size ?? 16) + 2),   currentValue: cur?.font_size }
+            : { parameter: 'targetSize', suggestedValue: Math.min(56, (cur?.target_size ?? 44) + 8), currentValue: cur?.target_size };
+        case 'too_large':
+          return compType === 'text'
+            ? { parameter: 'fontSize',   suggestedValue: Math.max(12, (cur?.font_size ?? 16) - 2),   currentValue: cur?.font_size }
+            : { parameter: 'targetSize', suggestedValue: Math.max(32, (cur?.target_size ?? 44) - 8), currentValue: cur?.target_size };
+        case 'hard_to_read':
+          return { parameter: 'fontSize',        suggestedValue: Math.min(22, (cur?.font_size ?? 16) + 2), currentValue: cur?.font_size };
+        case 'bad_contrast':
+          return { parameter: 'contrast',        suggestedValue: 'high',  currentValue: cur?.contrast_mode };
+        case 'line_height':
+          return { parameter: 'lineHeight',      suggestedValue: Math.min(2.0, (cur?.line_height ?? 1.5) + 0.2), currentValue: cur?.line_height };
+        case 'layout':
+          return { parameter: 'spacing',         suggestedValue: Math.min(24, (cur?.element_spacing_y ?? 12) + 4), currentValue: cur?.element_spacing_y };
+        case 'wrong_color':
+          return { parameter: 'contrast',        suggestedValue: 'high',  currentValue: cur?.contrast_mode };
+        default:
+          return null;
       }
-      setActiveFeedbackComponent(null);
-    } catch (err) {
-      console.error("[AdaptiveProvider] Error submitting component feedback:", err);
+    };
+
+    const applySuggestion = (suggestion: { parameter: string; suggestedValue: any; currentValue?: any } | null) => {
+      if (!suggestion) return;
+      handleSettingsUpdate({ [suggestion.parameter]: suggestion.suggestedValue }, 'ml', 0.8);
+      setPendingDiffs([{ key: suggestion.parameter, oldVal: suggestion.currentValue, newVal: suggestion.suggestedValue }]);
+    };
+
+    // ── Try server first; fall back to local suggestion on any error ───────
+    if (apiEndpoint && userId) {
+      try {
+        const payload = {
+          userId,
+          componentId: activeFeedbackComponent.id,
+          componentType: activeFeedbackComponent.type,
+          issue: data.issue,
+          severity: data.severity,
+          comment: data.comment,
+          context: { currentProfile: profile, componentProps: activeFeedbackComponent.props, timestamp: new Date().toISOString() }
+        };
+
+        const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/rl-feedback/component-issue`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (result.success && result.nextSuggestion) {
+          applySuggestion(result.nextSuggestion);
+        } else {
+          applySuggestion(buildLocalComponentSuggestion(data.issue, activeFeedbackComponent.type));
+        }
+      } catch (err) {
+        console.warn("[AdaptiveProvider] Component feedback server unreachable – applying local suggestion.");
+        applySuggestion(buildLocalComponentSuggestion(data.issue, activeFeedbackComponent.type));
+      }
+    } else {
+      // No server configured – apply locally immediately
+      applySuggestion(buildLocalComponentSuggestion(data.issue, activeFeedbackComponent.type));
     }
-  }, [activeFeedbackComponent, apiEndpoint, userId, profile]);
+
+    setActiveFeedbackComponent(null);
+  }, [activeFeedbackComponent, apiEndpoint, userId, profile, handleSettingsUpdate]);
 
   // DEV path: local mocks
   const loadFromMocks = useCallback(
@@ -787,6 +860,7 @@ export function AdaptiveProvider({
     behaviorTracker,
     submitFeedback,
     openComponentFeedback,
+    applySettings: (settings: Record<string, any>, src = 'user') => handleSettingsUpdate(settings, src),
 
     reload: async () => {
       if (simulateExtensionInstalled) {

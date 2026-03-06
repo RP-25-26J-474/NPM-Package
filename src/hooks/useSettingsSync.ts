@@ -74,7 +74,9 @@ export function useSettingsSync({
     }
 
     try {
-      const url = `${apiEndpoint}/api/settings-events/${userId}`;
+      // apiEndpoint already contains /api (e.g. http://localhost:5000/api)
+      // Server mounts SSE at /api/settings/events/:userId
+      const url = `${apiEndpoint}/settings/events/${userId}`;
       console.log('[AURA SSE] Connecting to:', url);
 
       const eventSource = new EventSource(url);

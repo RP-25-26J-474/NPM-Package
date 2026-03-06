@@ -24,6 +24,7 @@ export { AdaptiveDialog } from "./components/AdaptiveDialog";
 export { BehaviorTracker } from "./BehaviorTracker";
 export { useRealtimeUIUpdates } from "./hooks/useRealtimeUIUpdates";
 export { useSettingsSync } from "./hooks/useSettingsSync";
+export { useUserSettingsStore } from "./hooks/useUserSettingsStore";
 export { useTrialManager } from "./hooks/useTrialManager";
 export { AdaptiveChangeConfirmation } from "./components/AdaptiveChangeConfirmation";
 export { AdaptiveDifficultyDetector } from "./components/AdaptiveDifficultyDetector";

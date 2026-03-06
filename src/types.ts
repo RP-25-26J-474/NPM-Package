@@ -163,6 +163,8 @@ export interface AdaptiveContextValue {
   /** Re-fetch from extension (or mocks in dev) */
   reload: () => Promise<void>;
   openComponentFeedback?: (componentId: string, type: 'button' | 'text' | 'container' | 'input', currentProps: any) => void;
+  /** Apply a settings patch immediately to the UI (works offline, no backend required) */
+  applySettings?: (settings: Record<string, any>, source?: string) => void;
 }
 
 export interface AdaptiveProviderProps {
