@@ -109,13 +109,15 @@ export function AdaptiveMenu(props: AdaptiveMenuProps) {
   const wrapperStyle: AnyStyle = {
     width: fullWidth ? "100%" : "auto",
     backgroundColor: colors.surface,
-    border: "1px solid " + colors.border,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: colors.border,
     borderRadius: 14,
     padding: Math.max(8, spacing.padY).toString() + "px " + Math.max(10, spacing.padX).toString() + "px",
     boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
-    gap: groupGap,
+    rowGap: groupGap,
   };
 
   if (!flags.highContrast) {

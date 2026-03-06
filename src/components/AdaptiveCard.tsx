@@ -75,7 +75,9 @@ function AdaptiveCardRoot(props: AdaptiveCardProps) {
   const padX = Math.max(12, spacing.padX);
 
   const wrapperStyle: AnyStyle = {
-    border: "1px solid " + colors.border,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: colors.border,
     borderRadius: 16,
     backgroundColor: colors.surface,
     color: colors.text,
@@ -127,7 +129,7 @@ function AdaptiveCardBody(props: AdaptiveComponentProps) {
   const style: AnyStyle = {
     display: "flex",
     flexDirection: "column",
-    gap: Math.max(8, spacing.gapY).toString() + "px",
+    rowGap: Math.max(8, spacing.gapY).toString() + "px",
   };
 
   mergeStyle(style, (props as any).style);
