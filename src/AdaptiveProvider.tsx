@@ -477,6 +477,13 @@ export function AdaptiveProvider({
       if (result.success && result.nextSuggestion) {
           const suggestion = result.nextSuggestion;
           handleSettingsUpdate({ [suggestion.parameter]: suggestion.suggestedValue }, 'ml', suggestion.confidence || 0.85);
+          
+          // Trigger the ML feedback prompt immediately to see if this suggestion actually fixed their complaint!
+          setPendingDiffs([{
+             key: suggestion.parameter,
+             oldVal: suggestion.currentValue,
+             newVal: suggestion.suggestedValue
+          }]);
       }
       setActiveFeedbackComponent(null);
     } catch (err) {

@@ -91,9 +91,23 @@ export function AdaptiveFeedback() {
     
     setTargetParam(param);
 
-    const backendUrl = "http://localhost:8000";
+    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
 
     try {
+      // Map RL params (app.py) to API/Profile params (types.ts)
+      const paramMap: Record<string, string> = {
+          'fontSize': 'font_size',
+          'targetSize': 'target_size',
+          'contrastMode': 'contrast_mode',
+          'elementSpacing': 'element_spacing',
+          'layoutSimplification': 'layout_simplification',
+          'reducedMotion': 'reduced_motion',
+          'theme': 'theme'
+      };
+      
+      const apiParam = paramMap[param] || param;
+      const currentAction = profile?.[apiParam as keyof typeof profile] || "unknown";
+
       // 1. Send Negative Feedback
       await fetch(`${backendUrl}/rl/feedback`, {
         method: "POST",
@@ -101,7 +115,7 @@ export function AdaptiveFeedback() {
         body: JSON.stringify({
           userId: userId || "guest",
           parameter: param,
-          action: "keep_current", // The current state is what caused the issue
+          action: currentAction, // The current state is what caused the issue
           reward: -0.5,
           metadata: { source: "user_validation", anomaly: anomaly.type },
         }),
@@ -142,7 +156,7 @@ export function AdaptiveFeedback() {
   const handleDismissSuggestion = async () => {
     if (!suggestion || !targetParam) return;
     
-    const backendUrl = "http://localhost:8000";
+    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
 
     try {
       // Send Negative Feedback for the REJECTED suggestion
@@ -170,8 +184,8 @@ export function AdaptiveFeedback() {
   const handleApplySuggestion = async () => {
     if (!suggestion || !targetParam) return;
 
-    const reportApi = apiEndpoint || "http://localhost:5000/api";
-    const backendUrl = "http://localhost:8000";
+    const reportApi = apiEndpoint || process.env.AURA_RL_BACKEND_API || "http://localhost:5000/api";
+    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
 
     try {
       // 1. Apply Setting

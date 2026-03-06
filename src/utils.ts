@@ -190,7 +190,8 @@ export const mockFetchAuraEnvelope = async (
   userId: string
 ): Promise<AuraMlEnvelopeV2> => {
   try {
-    const response = await fetch(`http://localhost:8000/users/${userId}/profile`);
+    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
+    const response = await fetch(`${backendUrl}/users/${userId}/profile`);
     if (response.ok) {
         const data = await response.json();
         if (data.success && data.profile) {
