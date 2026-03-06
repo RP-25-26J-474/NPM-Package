@@ -259,7 +259,9 @@ export function AdaptiveTable<T>(props: AdaptiveTableProps<T>) {
     const wrapperStyle: AnyStyle = {
         width: "100%",
         overflowX: "auto",
-        border: "1px solid " + borderColor,
+        borderWidth: 1,
+        borderStyle: "solid",
+        borderColor: borderColor,
         borderRadius: 12,
         backgroundColor: colors.background,
     };
@@ -335,7 +337,9 @@ export function AdaptiveTable<T>(props: AdaptiveTableProps<T>) {
         minWidth: ctrlH,
         padding: "0 " + ctrlPadX.toString() + "px",
         borderRadius: 9999,
-        border: "1px solid " + borderColor,
+        borderWidth: 1,
+        borderStyle: "solid",
+        borderColor: borderColor,
         backgroundColor: colors.surface,
         color: colors.text,
         cursor: "pointer",
