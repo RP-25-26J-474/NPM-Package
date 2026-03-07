@@ -11,6 +11,7 @@ import React, {
 import { predictFallbackTokens } from "./fallback-ml/predict";
 import { readFallbackCache, writeFallbackCache } from "./fallback-ml/cache";
 import { buildFallbackProfileFromPredictions } from "./utils";
+import { loadAdaptiveProfileFromExtension } from "./extensionBridge";
 
 import type {
   AdaptiveContextValue,
@@ -67,75 +68,6 @@ function isLoggedInUserId(userId: string | undefined | null): boolean {
     normalized !== "anon" &&
     normalized !== "unknown"
   );
-}
-
-// ----------------------------
-// Extension bridge (page <-> content script via window.postMessage)
-// ----------------------------
-type AuraExtensionBridge = {
-  isInstalled: () => Promise<boolean>;
-  getUserId: () => Promise<string>;
-  getMlEnvelope: (userId: string) => Promise<AuraMlEnvelopeV2>;
-};
-
-function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
-  function request<T>(requestType: string, responseType: string): Promise<T> {
-    return new Promise((resolve, reject) => {
-      if (typeof window === "undefined") {
-        reject(new Error("No window"));
-        return;
-      }
-
-      const requestId = "aura_" + Math.random().toString(36).slice(2);
-
-      const timer = window.setTimeout(() => {
-        window.removeEventListener("message", onMessage);
-        reject(new Error("Extension response timeout"));
-      }, timeoutMs);
-
-      function onMessage(ev: MessageEvent) {
-        const d = ev && ev.data ? ev.data : null;
-        if (!d || d.__aura !== true) return;
-        if (d.requestId !== requestId) return;
-        if (d.type !== responseType) return;
-
-        window.clearTimeout(timer);
-        window.removeEventListener("message", onMessage);
-        resolve(d.payload as T);
-      }
-
-      window.addEventListener("message", onMessage);
-      window.postMessage({ __aura: true, type: requestType, requestId }, "*");
-    });
-  }
-
-  return {
-    isInstalled: async () => {
-      try {
-        await request("AURA_EXT_PING", "AURA_EXT_PONG");
-        return true;
-      } catch {
-        return false;
-      }
-    },
-
-    getUserId: async () => {
-      const payload = await request<{ userId: string }>(
-        "AURA_EXT_GET_USER_ID",
-        "AURA_EXT_USER_ID"
-      );
-      return payload && payload.userId ? String(payload.userId) : "guest";
-    },
-
-    getMlEnvelope: async (_userId: string) => {
-      // extension returns the full envelope directly
-      const payload = await request<AuraMlEnvelopeV2>(
-        "AURA_EXT_GET_ML_PROFILE",
-        "AURA_EXT_ML_PROFILE"
-      );
-      return payload;
-    },
-  };
 }
 
 function applyEnvelope(
@@ -594,33 +526,28 @@ export function AdaptiveProvider({
 
   // REAL path: extension
   const loadFromExtension = useCallback(async () => {
-    const bridge = createRealExtensionBridge(2200);
-
     try {
       setLoading(true);
       setError(undefined);
       setIsExtensionLoggedIn(undefined);
 
-      const installed = await bridge.isInstalled();
-      setIsExtensionInstalled(installed);
+      const result = await loadAdaptiveProfileFromExtension(initialUserId);
+      setIsExtensionInstalled(result.installed);
+      setIsExtensionLoggedIn(result.loggedIn);
 
-      if (!installed) {
-        setIsExtensionLoggedIn(false);
+      if (!result.installed || !result.loggedIn || !result.envelope) {
         await loadFallback(setUserId, setSource, setProfile, setTokens);
         return;
       }
 
-      const extUserId = await bridge.getUserId();
-      const loggedIn = isLoggedInUserId(extUserId);
-      setIsExtensionLoggedIn(loggedIn);
-
-      if (!loggedIn) {
-        await loadFallback(setUserId, setSource, setProfile, setTokens);
-        return;
-      }
-
-      const env = await bridge.getMlEnvelope(extUserId);
-      applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens, handleProfileDiff);
+      applyEnvelope(
+        result.envelope,
+        (v) => setUserId(v),
+        setSource,
+        setProfile,
+        setTokens,
+        handleProfileDiff
+      );
     } catch (err) {
       console.error("[AURA] Extension path failed", err);
       setError("Failed to load personalization from extension");
@@ -629,7 +556,7 @@ export function AdaptiveProvider({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [initialUserId]);
 
   // Initialization
   useEffect(() => {
@@ -648,8 +575,11 @@ export function AdaptiveProvider({
 
     function onMessage(ev: MessageEvent) {
       const d = ev && ev.data ? ev.data : null;
-      if (!d || d.__aura !== true) return;
-      if (d.type !== "AURA_EXT_PROFILE_CHANGED") return;
+      if (ev.source !== window) return;
+      if (!d || d.source !== "aura-extension") return;
+      if (d.type !== "AURA_USER_UPDATE" && d.type !== "AURA_EXT_PROFILE_CHANGED") {
+        return;
+      }
 
       // When extension says profile changed -> re-fetch
       loadFromExtension();
