@@ -244,7 +244,7 @@ export const mockFetchAuraEnvelope = async (
 
   // For non-demo users, try the live backend first
   try {
-    const backendUrl = process.env.AURA_RL_URL || "http://localhost:8000";
+    const backendUrl = process.env.AURA_RL_URL || "https://rl-service.fly.dev";
     const response = await fetch(`${backendUrl}/users/${userId}/profile`);
     if (response.ok) {
       const data = await response.json();
