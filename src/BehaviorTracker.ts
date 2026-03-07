@@ -128,6 +128,16 @@ export class BehaviorTracker {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  /**
+   * Update the userId after construction (e.g. when a real user logs in).
+   */
+  public updateUserId(newUserId: string) {
+    if (newUserId && newUserId !== this.config.userId) {
+      this.log(`userId updated: ${this.config.userId} → ${newUserId}`);
+      this.config.userId = newUserId;
+    }
+  }
+
   private log(message: string, data?: any) {
     if (this.config.debugMode) {
       console.log(`[BehaviorTracker] ${message}`, data || '');

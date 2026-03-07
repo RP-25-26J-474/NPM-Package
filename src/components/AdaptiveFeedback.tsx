@@ -3,7 +3,7 @@ import React, { useEffect, useState, type CSSProperties } from "react";
 import { useAdaptive } from "../AdaptiveProvider";
 
 export function AdaptiveFeedback() {
-  const { behaviorTracker, userId, apiEndpoint, profile, applySettings } = useAdaptive();
+  const { behaviorTracker, userId, apiEndpoint, rlEndpoint, profile, applySettings } = useAdaptive();
   
   // State for the new flow
   const [step, setStep] = useState<"idle" | "validation" | "fetching" | "suggestion">("idle");
@@ -91,7 +91,7 @@ export function AdaptiveFeedback() {
     
     setTargetParam(param);
 
-    const backendUrl = process.env.AURA_RL_URL || "https://rl-service.fly.dev";
+    const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
 
     // Helper to build a local suggestion without needing the RL backend
     const buildLocalSuggestion = (p: string): { action: any; reasoning: { recommendation: string }; success: boolean } => {
@@ -180,7 +180,7 @@ export function AdaptiveFeedback() {
   const handleDismissSuggestion = async () => {
     if (!suggestion || !targetParam) return;
     
-    const backendUrl = process.env.AURA_RL_URL || "https://rl-service.fly.dev";
+    const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
 
     try {
       // Send Negative Feedback for the REJECTED suggestion
@@ -222,7 +222,7 @@ export function AdaptiveFeedback() {
 
     // 2. Fire-and-forget server calls (non-blocking)
     const reportApi = apiEndpoint || "http://localhost:5000/api";
-    const backendUrl = "https://rl-service.fly.dev";
+    const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
 
     fetch(`${reportApi}/manual-settings/apply`, {
       method: "POST",

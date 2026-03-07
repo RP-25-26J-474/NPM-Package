@@ -187,7 +187,8 @@ export const deriveTokensFromProfile = (profile: AuraProfileV2): AuraTokens => {
 // -------------------------------
 
 export const mockFetchAuraEnvelope = async (
-  userId: string
+  userId: string,
+  rlEndpointOverride?: string
 ): Promise<AuraMlEnvelopeV2> => {
   // ── Demo profile: offline-first, no backend needed ──────────────────────
   if (userId === "u_001") {
@@ -244,7 +245,7 @@ export const mockFetchAuraEnvelope = async (
 
   // For non-demo users, try the live backend first
   try {
-    const backendUrl = process.env.AURA_RL_URL || "https://rl-service.fly.dev";
+    const backendUrl = rlEndpointOverride || process.env.AURA_RL_URL || "https://rl-service.fly.dev";
     const response = await fetch(`${backendUrl}/users/${userId}/profile`);
     if (response.ok) {
       const data = await response.json();

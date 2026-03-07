@@ -12,6 +12,7 @@ type AuraExtensionBridge = {
 type AuraExtensionStatus = {
   extensionPresent?: boolean;
   loggedIn?: boolean;
+  userId?: string | null;
   token?: string | null;
   user?: {
     email?: string | null;
@@ -133,6 +134,7 @@ function getExtensionDisplayUserId(
   status: AuraExtensionStatus,
   fallbackUserId?: string
 ): string {
+  if (status.userId && typeof status.userId === 'string' && status.userId.trim()) return status.userId;
   if (status.user?.email && status.user.email.trim()) return status.user.email;
   if (status.user?.name && status.user.name.trim()) return status.user.name;
   if (fallbackUserId && fallbackUserId.trim()) return fallbackUserId;

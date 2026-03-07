@@ -157,6 +157,7 @@ export interface AdaptiveContextValue {
   isExtensionInstalled: boolean;
   behaviorTracker?: any; // BehaviorTracker instance
   apiEndpoint?: string; // Add this
+  rlEndpoint?: string;
   submitFeedback?: (feedback: AdaptiveFeedbackPayload) => Promise<{ success: boolean }>;
   isExtensionLoggedIn?: boolean;
 
@@ -196,6 +197,11 @@ export interface AdaptiveProviderProps {
    * Enable debug logging for behavior tracker.
    */
   debugMode?: boolean;
+  /**
+   * RL service endpoint for reinforcement learning feedback.
+   * Example: 'http://localhost:8000'
+   */
+  rlEndpoint?: string;
 
   /** Optional: show a CTA prompt when the extension is missing. */
   showExtensionPrompt?: boolean;

@@ -129,6 +129,7 @@ export function AdaptiveProvider({
   extensionPromptDismissStyle,
   extensionPromptStorageKey = DEFAULT_EXTENSION_PROMPT_STORAGE_KEY,
   onExtensionPromptDismiss,
+  rlEndpoint,
   mode = "standard",
 }: AdaptiveProviderProps & { mode?: "standard" | "trial-based" }) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
@@ -156,9 +157,10 @@ export function AdaptiveProvider({
 
   useEffect(() => {
     if (enableBehaviorTracking) {
+      const effectiveUserId = (isLoggedInUserId(userId) ? userId : isLoggedInUserId(initialUserId) ? initialUserId : userId) || 'guest';
       const tracker = new BehaviorTracker({
         apiEndpoint: apiEndpoint || '',
-        userId: initialUserId || 'guest',
+        userId: effectiveUserId,
         uiVariant: 'baseline',
         debugMode: debugMode
       });
@@ -169,6 +171,13 @@ export function AdaptiveProvider({
       };
     }
   }, [enableBehaviorTracking, apiEndpoint, initialUserId, debugMode]);
+
+  // Keep tracker userId in sync when the resolved userId changes (e.g. after extension login)
+  useEffect(() => {
+    if (behaviorTracker && userId && isLoggedInUserId(userId)) {
+      behaviorTracker.updateUserId(userId);
+    }
+  }, [behaviorTracker, userId]);
 
   const [pendingDiffs, setPendingDiffs] = useState<{key: string; oldVal: any; newVal: any}[]>([]);
   const pendingDiffsRef = useRef(pendingDiffs);
@@ -188,6 +197,8 @@ export function AdaptiveProvider({
   // Listen for Anomaly events to trigger ML feedback queue
   useEffect(() => {
      if (typeof window === 'undefined') return;
+     // Guest users should not receive anomaly-driven ML suggestions
+     if (!(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId))) return;
 
      const handleAnomaly = (e: any) => {
         setMlChangedSettings(prev => {
@@ -203,7 +214,7 @@ export function AdaptiveProvider({
 
      window.addEventListener('aura-anomaly', handleAnomaly);
      return () => window.removeEventListener('aura-anomaly', handleAnomaly);
-  }, []);
+  }, [userId, initialUserId]);
 
   const {
     activeTrial,
@@ -236,6 +247,10 @@ export function AdaptiveProvider({
   }, []);
 
   const handleSettingsUpdate = useCallback((settings: any, source: string, mlConf?: number) => {
+    // Block RL/ML/SSE-driven UI changes for guest users
+    const isGuest = !(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId));
+    if (isGuest && source !== 'user' && source !== 'revert') return;
+
     const currentProfile = profileRef.current;
     
     let primaryChangedKey = 'theme';
@@ -321,6 +336,8 @@ export function AdaptiveProvider({
   // Handle Diff from Extension/Backend Profile Load
   const handleProfileDiff = useCallback((diff: any) => {
       if (!diff || !diff.changed || diff.changed.length === 0) return;
+      // Guest users should not receive profile diffs from ML
+      if (!(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId))) return;
       
       const newDiffItems = diff.changed.map((key: string) => ({
           key,
@@ -334,9 +351,9 @@ export function AdaptiveProvider({
   }, []);
 
   useSettingsSync({
-    userId: userId || initialUserId || 'guest',
+    userId: (isLoggedInUserId(userId) ? userId : initialUserId) || 'guest',
     apiEndpoint: apiEndpoint || '',
-    enabled: !!apiEndpoint && !!userId,
+    enabled: !!apiEndpoint && (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)),
     // Prefix source with 'sse:' so handleSettingsUpdate skips the server re-POST
     onSettingsUpdate: (settings, sseSource) => handleSettingsUpdate(settings, `sse:${sseSource || 'unknown'}`),
     onConnect: () => {},
@@ -371,6 +388,8 @@ export function AdaptiveProvider({
   }, [storeUpdateSettings]);
   const submitFeedback = useCallback(
     async (feedback: AdaptiveFeedbackPayload): Promise<{ success: boolean }> => {
+      // Guest users cannot submit feedback
+      if (!isLoggedInUserId(userId)) return { success: false };
       if (!apiEndpoint || !userId || !sessionId) return { success: false };
       const answer = (feedback.value ?? 0) >= 0.5 ? 'yes' : 'no';
       const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/feedback/explicit`, {
@@ -419,11 +438,15 @@ export function AdaptiveProvider({
   );
 
   const openComponentFeedback = useCallback((componentId: string, type: ComponentFeedbackType, currentProps: any) => {
+    // Guest users cannot submit component feedback
+    if (!(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId))) return;
     setActiveFeedbackComponent({ id: componentId, type, props: currentProps });
-  }, []);
+  }, [userId, initialUserId]);
 
   const handleComponentFeedbackSubmit = useCallback(async (data: { issue: string; severity: number; comment?: string }) => {
     if (!activeFeedbackComponent) return;
+    // Guest users cannot submit component feedback
+    if (!(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId))) return;
 
     // ── Local suggestion map (works 100% offline) ─────────────────────────
     // Keys MUST match what handleSettingsUpdate reads (camelCase)
@@ -460,10 +483,11 @@ export function AdaptiveProvider({
     };
 
     // ── Try server first; fall back to local suggestion on any error ───────
-    if (apiEndpoint && userId) {
+    if (apiEndpoint && (userId || initialUserId)) {
       try {
+        const effectiveId = isLoggedInUserId(userId) ? userId : initialUserId;
         const payload = {
-          userId,
+          userId: effectiveId,
           componentId: activeFeedbackComponent.id,
           componentType: activeFeedbackComponent.type,
           issue: data.issue,
@@ -536,7 +560,20 @@ export function AdaptiveProvider({
       setIsExtensionLoggedIn(result.loggedIn);
 
       if (!result.installed || !result.loggedIn || !result.envelope) {
-        await loadFallback(setUserId, setSource, setProfile, setTokens);
+        if (result.installed && result.loggedIn) {
+          // Extension installed & user logged in but no stored profile yet.
+          // Use default profile but KEEP the real userId so feedback stays enabled.
+          const cached = readFallbackCache();
+          const pred = cached ?? predictFallbackTokens();
+          if (!cached) writeFallbackCache(pred);
+          const fullProfile = buildFallbackProfileFromPredictions(pred);
+          setUserId(initialUserId || "guest");
+          setSource("fallback");
+          setProfile(fullProfile);
+          setTokens(deriveTokensFromProfile(fullProfile));
+        } else {
+          await loadFallback(setUserId, setSource, setProfile, setTokens);
+        }
         return;
       }
 
@@ -568,6 +605,53 @@ export function AdaptiveProvider({
     }
     loadFromExtension();
   }, [simulateExtensionInstalled, initialUserId, loadFromMocks, loadFromExtension]);
+
+  // Register user with RL service when a real (non-guest) userId is detected
+  const rlRegisteredRef = useRef<string | null>(null);
+  useEffect(() => {
+    const effectiveUserId = isLoggedInUserId(userId) ? userId : initialUserId;
+    if (!isLoggedInUserId(effectiveUserId)) return;
+    if (!rlEndpoint) return;
+    // Only register once per userId
+    if (rlRegisteredRef.current === effectiveUserId) return;
+    rlRegisteredRef.current = effectiveUserId!;
+
+    const registerUrl = `${rlEndpoint.replace(/\/+$/, "")}/rl/register-user`;
+    const currentProfile = profile || initialProfile;
+
+    fetch(registerUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: effectiveUserId,
+        profile: {
+          font_size: currentProfile.font_size,
+          line_height: currentProfile.line_height,
+          theme: currentProfile.theme,
+          contrast_mode: currentProfile.contrast_mode,
+          element_spacing_x: currentProfile.element_spacing_x,
+          element_spacing_y: currentProfile.element_spacing_y,
+          element_padding_x: currentProfile.element_padding_x,
+          element_padding_y: currentProfile.element_padding_y,
+          target_size: currentProfile.target_size,
+          reduced_motion: currentProfile.reduced_motion,
+          tooltip_assist: currentProfile.tooltip_assist,
+          layout_simplification: currentProfile.layout_simplification,
+        },
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          console.log(`[AURA] RL profile registered for ${effectiveUserId}`, data);
+        }
+      })
+      .catch((err) => {
+        console.warn("[AURA] Failed to register RL profile:", err);
+        // Reset so it retries on next render
+        rlRegisteredRef.current = null;
+      });
+  }, [userId, initialUserId, rlEndpoint, profile]);
 
   // Instant update when extension user changes (no refresh)
   useEffect(() => {
@@ -787,6 +871,7 @@ export function AdaptiveProvider({
     isExtensionInstalled,
     isExtensionLoggedIn,
     apiEndpoint,
+    rlEndpoint,
     behaviorTracker,
     submitFeedback,
     openComponentFeedback,
@@ -806,9 +891,9 @@ export function AdaptiveProvider({
     { value: contextValue },
     React.createElement(React.Fragment, null, 
       extensionPrompt, 
-      pendingDiffs.length > 0 ? React.createElement(MLFeedbackPrompt, {
+      (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)) && pendingDiffs.length > 0 ? React.createElement(MLFeedbackPrompt, {
           key: pendingDiffs[0].key, // Forces component to remount so the auto-hide timer resets
-          userId: userId || "guest",
+          userId: (isLoggedInUserId(userId) ? userId : initialUserId) || "guest",
           settingKey: pendingDiffs[0].key,
           oldValue: pendingDiffs[0].oldVal,
           newValue: pendingDiffs[0].newVal,
@@ -817,20 +902,20 @@ export function AdaptiveProvider({
           apiEndpoint: apiEndpoint || "",
           onFeedback: handleSettingsFeedback
       }) : null,
-      activeFeedbackComponent && React.createElement(ComponentFeedbackModal, {
+      (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)) && activeFeedbackComponent && React.createElement(ComponentFeedbackModal, {
           componentId: activeFeedbackComponent.id,
           componentType: activeFeedbackComponent.type,
           currentProps: activeFeedbackComponent.props,
           onClose: () => setActiveFeedbackComponent(null),
           onSubmit: handleComponentFeedbackSubmit
       }),
-      React.createElement(AdaptiveTempUserPrompt, {
-          userId: userId || initialUserId || "guest",
+      (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)) && React.createElement(AdaptiveTempUserPrompt, {
+          userId: (isLoggedInUserId(userId) ? userId : initialUserId) || "guest",
           apiEndpoint: apiEndpoint || "",
           tracker: behaviorTracker,
           enabled: enableBehaviorTracking,
       }),
-      enableBehaviorTracking && React.createElement(AdaptiveFeedback, null),
+      (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)) && enableBehaviorTracking && React.createElement(AdaptiveFeedback, null),
       children
     )
   );
