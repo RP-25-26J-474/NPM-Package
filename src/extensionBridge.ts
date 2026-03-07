@@ -318,3 +318,33 @@ export async function loadAdaptiveProfileFromExtension(
     extensionUserId: extUserId,
   };
 }
+
+/**
+ * Send the updated adaptive profile back to the extension for persistent storage.
+ * Uses the AURA_EXT_SET_ADAPTIVE_PROFILE PING → ACK protocol already implemented
+ * in the extension's content.js / background.js.
+ */
+export function saveAdaptiveProfileToExtension(
+  profile: AuraProfileV2,
+  userId?: string
+): void {
+  if (typeof window === "undefined") return;
+
+  window.postMessage(
+    {
+      type: "AURA_EXT_SET_ADAPTIVE_PROFILE",
+      source: "aura-web",
+      profile: {
+        user_id: userId || "unknown",
+        metadata: {
+          origin: "user" as const,
+          created_at: new Date().toISOString(),
+          confidence_overall: 1.0,
+          version: 1,
+        },
+        profile,
+      },
+    },
+    "*"
+  );
+}

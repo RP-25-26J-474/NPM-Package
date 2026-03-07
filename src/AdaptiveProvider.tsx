@@ -11,7 +11,7 @@ import React, {
 import { predictFallbackTokens } from "./fallback-ml/predict";
 import { readFallbackCache, writeFallbackCache } from "./fallback-ml/cache";
 import { buildFallbackProfileFromPredictions } from "./utils";
-import { loadAdaptiveProfileFromExtension } from "./extensionBridge";
+import { loadAdaptiveProfileFromExtension, saveAdaptiveProfileToExtension } from "./extensionBridge";
 
 import type {
   AdaptiveContextValue,
@@ -228,6 +228,16 @@ export function AdaptiveProvider({
     profileRef.current = profile;
   }, [profile]);
 
+  const extensionInstalledRef = useRef(isExtensionInstalled);
+  useEffect(() => {
+    extensionInstalledRef.current = isExtensionInstalled;
+  }, [isExtensionInstalled]);
+
+  const userIdRef = useRef(userId || initialUserId);
+  useEffect(() => {
+    userIdRef.current = userId || initialUserId;
+  }, [userId, initialUserId]);
+
   const isSignificantDeviation = useCallback((newSettings: any, baseProfile: AuraProfileV2): boolean => {
     if (!newSettings) return false;
     if (newSettings.theme && newSettings.theme !== baseProfile.theme) return true;
@@ -248,7 +258,7 @@ export function AdaptiveProvider({
 
   const handleSettingsUpdate = useCallback((settings: any, source: string, mlConf?: number) => {
     // Block RL/ML/SSE-driven UI changes for guest users
-    const isGuest = !(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId));
+    const isGuest = !isLoggedInUserId(userIdRef.current);
     if (isGuest && source !== 'user' && source !== 'revert') return;
 
     const currentProfile = profileRef.current;
@@ -287,8 +297,8 @@ export function AdaptiveProvider({
       accent_color_content: settings.accent_color_content || currentProfile?.accent_color_content || '#ffffff',
       theme: settings.theme || currentProfile?.theme || 'light',
       reduced_motion: settings.reducedMotion ?? settings.reduced_motion ?? currentProfile?.reduced_motion ?? false,
-      element_spacing_x: settings.spacing || settings.element_spacing_x || currentProfile?.element_spacing_x || 10,
-      element_spacing_y: settings.spacing || settings.element_spacing_y || currentProfile?.element_spacing_y || 10,
+      element_spacing_x: settings.spacing || settings.element_spacing_x || settings.element_spacing || currentProfile?.element_spacing_x || 10,
+      element_spacing_y: settings.spacing || settings.element_spacing_y || settings.element_spacing || currentProfile?.element_spacing_y || 10,
       element_padding_x: settings.element_padding_x || currentProfile?.element_padding_x || 12,
       element_padding_y: settings.element_padding_y || currentProfile?.element_padding_y || 12,
       target_size: targetSizeValue,
@@ -331,13 +341,18 @@ export function AdaptiveProvider({
     if (storeUpdateRef.current && source !== 'revert' && !source.startsWith('sse:')) {
       storeUpdateRef.current(updatedProfile, source);
     }
+
+    // Push updated profile back to extension storage so it persists across refresh
+    if (extensionInstalledRef.current && isLoggedInUserId(userIdRef.current)) {
+      saveAdaptiveProfileToExtension(updatedProfile, userIdRef.current!);
+    }
   }, [isSignificantDeviation]);
 
   // Handle Diff from Extension/Backend Profile Load
   const handleProfileDiff = useCallback((diff: any) => {
       if (!diff || !diff.changed || diff.changed.length === 0) return;
       // Guest users should not receive profile diffs from ML
-      if (!(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId))) return;
+      if (!isLoggedInUserId(userIdRef.current)) return;
       
       const newDiffItems = diff.changed.map((key: string) => ({
           key,
@@ -571,11 +586,8 @@ export function AdaptiveProvider({
             const env = await mockFetchAuraEnvelope(effectiveUserId, rlEndpoint || undefined);
             applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens, handleProfileDiff);
             // Save the fetched profile to extension storage for next refresh
-            if (env?.profile && typeof window !== "undefined") {
-              window.postMessage(
-                { type: "AURA_EXT_SET_ADAPTIVE_PROFILE", source: "aura-web", profile: env.profile },
-                "*"
-              );
+            if (env?.profile?.profile) {
+              saveAdaptiveProfileToExtension(env.profile.profile, effectiveUserId);
             }
           } catch {
             // API unavailable – use local fallback defaults
