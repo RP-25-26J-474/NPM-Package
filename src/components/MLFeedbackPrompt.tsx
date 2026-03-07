@@ -55,7 +55,7 @@ export function MLFeedbackPrompt({
       console.log('[AURA] 🎯 Sending feedback to RL model:', feedback);
 
       // Use keepalive to ensure request completes even if component unmounts
-      const response = await fetch(`${apiEndpoint}/api/users/${userId}/feedback`, {
+      const response = await fetch(`${apiEndpoint}/users/${userId}/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         keepalive: true, 

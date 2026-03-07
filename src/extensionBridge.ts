@@ -32,6 +32,7 @@ export type ExtensionLoadResult = {
   installed: boolean;
   loggedIn: boolean;
   envelope: AuraMlEnvelopeV2 | null;
+  extensionUserId: string | null;
 };
 
 function isRecord(value: unknown): value is AnyRecord {
@@ -289,13 +290,17 @@ export async function loadAdaptiveProfileFromExtension(
   const status = await bridge.getStatus();
   const installed = status.extensionPresent === true;
 
+  const extUserId = (status.userId && typeof status.userId === 'string' && status.userId.trim())
+    ? status.userId
+    : null;
+
   if (!installed) {
-    return { installed: false, loggedIn: false, envelope: null };
+    return { installed: false, loggedIn: false, envelope: null, extensionUserId: null };
   }
 
   const loggedIn = status.loggedIn === true;
   if (!loggedIn) {
-    return { installed: true, loggedIn: false, envelope: null };
+    return { installed: true, loggedIn: false, envelope: null, extensionUserId: extUserId };
   }
 
   const finalProfile = await bridge.getFinalProfile();
@@ -310,5 +315,6 @@ export async function loadAdaptiveProfileFromExtension(
     installed: true,
     loggedIn: true,
     envelope,
+    extensionUserId: extUserId,
   };
 }

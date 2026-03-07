@@ -559,18 +559,34 @@ export function AdaptiveProvider({
       setIsExtensionInstalled(result.installed);
       setIsExtensionLoggedIn(result.loggedIn);
 
+      // Use the real userId from the extension PONG when available
+      const effectiveUserId = result.extensionUserId || initialUserId || "guest";
+
       if (!result.installed || !result.loggedIn || !result.envelope) {
         if (result.installed && result.loggedIn) {
           // Extension installed & user logged in but no stored profile yet.
-          // Use default profile but KEEP the real userId so feedback stays enabled.
-          const cached = readFallbackCache();
-          const pred = cached ?? predictFallbackTokens();
-          if (!cached) writeFallbackCache(pred);
-          const fullProfile = buildFallbackProfileFromPredictions(pred);
-          setUserId(initialUserId || "guest");
-          setSource("fallback");
-          setProfile(fullProfile);
-          setTokens(deriveTokensFromProfile(fullProfile));
+          // Try fetching from the Optimization Engine API as fallback.
+          setUserId(effectiveUserId);
+          try {
+            const env = await mockFetchAuraEnvelope(effectiveUserId, rlEndpoint || undefined);
+            applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens, handleProfileDiff);
+            // Save the fetched profile to extension storage for next refresh
+            if (env?.profile && typeof window !== "undefined") {
+              window.postMessage(
+                { type: "AURA_EXT_SET_ADAPTIVE_PROFILE", source: "aura-web", profile: env.profile },
+                "*"
+              );
+            }
+          } catch {
+            // API unavailable – use local fallback defaults
+            const cached = readFallbackCache();
+            const pred = cached ?? predictFallbackTokens();
+            if (!cached) writeFallbackCache(pred);
+            const fullProfile = buildFallbackProfileFromPredictions(pred);
+            setSource("fallback");
+            setProfile(fullProfile);
+            setTokens(deriveTokensFromProfile(fullProfile));
+          }
         } else {
           await loadFallback(setUserId, setSource, setProfile, setTokens);
         }
@@ -593,7 +609,7 @@ export function AdaptiveProvider({
     } finally {
       setLoading(false);
     }
-  }, [initialUserId]);
+  }, [initialUserId, rlEndpoint]);
 
   // Initialization
   useEffect(() => {
