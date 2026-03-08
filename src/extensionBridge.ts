@@ -6,6 +6,7 @@ type AnyRecord = Record<string, unknown>;
 
 type AuraExtensionBridge = {
   getStatus: () => Promise<AuraExtensionStatus>;
+  getDemoProfile: () => Promise<AuraExtensionProfileResponse>;
   getFinalProfile: () => Promise<AuraExtensionFinalProfileResponse>;
 };
 
@@ -20,11 +21,14 @@ type AuraExtensionStatus = {
   error?: string;
 };
 
-type AuraExtensionFinalProfileResponse = {
+type AuraExtensionProfileResponse = {
   profile?: unknown;
   available?: boolean;
-  sourceType?: string | null;
   error?: string;
+};
+
+type AuraExtensionFinalProfileResponse = AuraExtensionProfileResponse & {
+  sourceType?: string | null;
 };
 
 export type ExtensionLoadResult = {
@@ -271,6 +275,11 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
 
   return {
     getStatus: () => request<AuraExtensionStatus>("AURA_EXT_PING", "AURA_EXT_PONG"),
+    getDemoProfile: () =>
+      request<AuraExtensionProfileResponse>(
+        "AURA_EXT_DEMO_PROFILE_PING",
+        "AURA_EXT_DEMO_PROFILE_PONG"
+      ),
     getFinalProfile: () =>
       request<AuraExtensionFinalProfileResponse>(
         "AURA_EXT_ML_FINAL_PROFILE_PING",
@@ -296,6 +305,20 @@ export async function loadAdaptiveProfileFromExtension(
     return { installed: true, loggedIn: false, envelope: null };
   }
 
+  const demoProfile = await bridge.getDemoProfile();
+  if (demoProfile.available) {
+    const envelope = normalizeExtensionEnvelope(
+      demoProfile,
+      getExtensionDisplayUserId(status, fallbackUserId)
+    );
+
+    return {
+      installed: true,
+      loggedIn: true,
+      envelope,
+    };
+  }
+
   const finalProfile = await bridge.getFinalProfile();
   const envelope = finalProfile.available
     ? normalizeExtensionEnvelope(
@@ -310,3 +333,4 @@ export async function loadAdaptiveProfileFromExtension(
     envelope,
   };
 }
+
