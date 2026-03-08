@@ -96,7 +96,7 @@ function fetchProfileFromExtension(timeoutMs: number): Promise<Partial<AuraProfi
 
     function onMessage(ev: MessageEvent) {
       const d = ev?.data;
-      if (!d || d.__aura !== true) return;
+      if (!d || d.source !== 'aura-extension') return;
       if (d.type !== EXT_RES_TYPE) return;
       if (d.requestId !== requestId) return;
 
@@ -108,7 +108,7 @@ function fetchProfileFromExtension(timeoutMs: number): Promise<Partial<AuraProfi
     }
 
     window.addEventListener('message', onMessage);
-    window.postMessage({ __aura: true, type: EXT_REQ_TYPE, requestId }, '*');
+    window.postMessage({ source: 'aura-web', type: EXT_REQ_TYPE, requestId }, '*');
   });
 }
 

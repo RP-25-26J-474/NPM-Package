@@ -601,6 +601,12 @@ export function AdaptiveProvider({
           }
         } else {
           await loadFallback(setUserId, setSource, setProfile, setTokens);
+          // If the host app passed a valid logged-in userId, preserve it so
+          // feedback and personalisation features remain unlocked even when
+          // the extension is absent or the user isn't logged into it.
+          if (isLoggedInUserId(initialUserId)) {
+            setUserId(initialUserId!);
+          }
         }
         return;
       }
@@ -618,6 +624,10 @@ export function AdaptiveProvider({
       setError("Failed to load personalization from extension");
       setIsExtensionLoggedIn(false);
       await loadFallback(setUserId, setSource, setProfile, setTokens);
+      // Restore the host app userId so feedback stays unlocked on refresh
+      if (isLoggedInUserId(initialUserId)) {
+        setUserId(initialUserId!);
+      }
     } finally {
       setLoading(false);
     }
