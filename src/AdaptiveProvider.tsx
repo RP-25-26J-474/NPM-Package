@@ -208,8 +208,7 @@ export function AdaptiveProvider({
       if (!d || d.source !== "aura-extension") return;
       if (
         d.type !== "AURA_USER_UPDATE" &&
-        d.type !== "AURA_EXT_PROFILE_CHANGED" &&
-        d.type !== "AURA_EXT_DEMO_PROFILE_CHANGED"
+        d.type !== "AURA_EXT_PROFILE_CHANGED"
       ) {
         return;
       }
@@ -440,4 +439,3 @@ export function useAdaptive(): AdaptiveContextValue {
   if (!ctx) throw new Error("useAdaptive must be used inside <AdaptiveProvider>");
   return ctx;
 }
-
