@@ -24,8 +24,8 @@ type AuraExtensionStatus = {
 type AuraExtensionFinalProfileResponse = {
   profile?: unknown;
   available?: boolean;
-  sourceType?: string | null;
   error?: string;
+  sourceType?: string | null;
 };
 
 export type ExtensionLoadResult = {

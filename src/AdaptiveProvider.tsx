@@ -699,7 +699,10 @@ export function AdaptiveProvider({
       const d = ev && ev.data ? ev.data : null;
       if (ev.source !== window) return;
       if (!d || d.source !== "aura-extension") return;
-      if (d.type !== "AURA_USER_UPDATE" && d.type !== "AURA_EXT_PROFILE_CHANGED") {
+      if (
+        d.type !== "AURA_USER_UPDATE" &&
+        d.type !== "AURA_EXT_PROFILE_CHANGED"
+      ) {
         return;
       }
 
