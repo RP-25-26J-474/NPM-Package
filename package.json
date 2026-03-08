@@ -1,12 +1,28 @@
 {
-  "name": "@aura/aura-adaptor",
+  "name": "@aura-adaptive/aura-ui-adaptor",
   "version": "1.0.0",
   "description": "React library for ML-driven adaptive UI components based on JSON rules",
-  "main": "dist/index.js",
-  "module": "dist/index.esm.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "build": "rollup -c"
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && rollup -c",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
@@ -32,10 +48,19 @@
   "type": "module",
   "keywords": [
     "react",
+    "adaptive-ui",
+    "design-system",
+    "personalization",
     "ui-adaptation",
     "accessibility",
     "ml-personalization"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "author": "Team_Aura",
   "license": "MIT"
 }
