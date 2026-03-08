@@ -1,6 +1,6 @@
-# @aura/aura-adaptor
+# @aura-adaptive/aura-ui-adaptor
 
-`@aura/aura-adaptor` is a React component library that adapts UI presentation from AURA profile data. It provides:
+`@aura-adaptive/aura-ui-adaptor` is a React component library that adapts UI presentation from AURA profile data. It provides:
 
 - `AdaptiveProvider` for loading personalization from the AURA browser extension, local mocks, or the built-in fallback model
 - `useAdaptive()` for access to the resolved profile, tokens, loading state, and reload action
@@ -9,7 +9,7 @@
 ## Installation
 
 ```bash
-npm install @aura/aura-adaptor
+npm install @aura-adaptive/aura-ui-adaptor
 ```
 
 This package expects `react` and `react-dom` as peer dependencies.
@@ -22,7 +22,7 @@ import {
   AdaptiveProvider,
   AdaptiveButton,
   AdaptiveText,
-} from "@aura/aura-adaptor";
+} from "@aura-adaptive/aura-ui-adaptor";
 
 export function App() {
   return (
@@ -40,7 +40,7 @@ export function App() {
 
 ```tsx
 import React from "react";
-import { AdaptiveProvider, useAdaptive } from "@aura/aura-adaptor";
+import { AdaptiveProvider, useAdaptive } from "@aura-adaptive/aura-ui-adaptor";
 
 function ProfileSummary() {
   const { loading, source, tokens, profile, reload } = useAdaptive();
