@@ -804,40 +804,49 @@ export function AdaptiveProvider({
         const { colors, typography, spacing, controls, flags } = tokens;
 
         const containerStyle: AnyStyle = {
-          width: "100%",
+          position: "fixed",
+          top: Math.max(16, Math.round(spacing.gapY * 1.4)),
+          right: Math.max(16, Math.round(spacing.gapX * 1.4)),
+          width: "min(420px, calc(100vw - 32px))",
+          maxWidth: "calc(100vw - 32px)",
           boxSizing: "border-box",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
+          display: "grid",
           gap: Math.max(10, spacing.gapX),
           padding:
-            Math.max(10, spacing.padY).toString() +
+            Math.max(14, spacing.padY).toString() +
             "px " +
-            Math.max(12, spacing.padX).toString() +
+            Math.max(16, spacing.padX).toString() +
             "px",
-          borderRadius: 14,
+          borderRadius: 18,
           borderWidth: flags.highContrast ? 2 : 1,
           borderStyle: "solid",
           borderColor: flags.highContrast ? colors.text : colors.primary,
           backgroundColor: flags.highContrast ? colors.background : colors.surface,
           color: colors.text,
-          marginBottom: Math.max(12, spacing.gapY),
+          boxShadow: flags.highContrast
+            ? "0 0 0 1px rgba(0, 0, 0, 0.12)"
+            : "0 20px 48px rgba(15, 23, 42, 0.22)",
+          backdropFilter: flags.highContrast ? undefined : "blur(14px)",
+          WebkitBackdropFilter: flags.highContrast ? undefined : "blur(14px)",
+          zIndex: 2147483000,
         };
         mergeStyle(containerStyle, extensionPromptStyle);
 
         const messageStyle: AnyStyle = {
           fontSize: typography.body,
           lineHeight: typography.lineHeight,
-          flex: "1 1 240px",
+          fontWeight: 500,
+          maxWidth: "100%",
         };
         mergeStyle(messageStyle, extensionPromptMessageStyle);
 
         const actionsStyle: AnyStyle = {
-          display: "inline-flex",
+          display: "flex",
           alignItems: "center",
+          justifyContent: "flex-end",
+          flexWrap: "wrap",
           gap: Math.max(8, Math.round(spacing.gapX * 0.8)),
-          flex: "0 0 auto",
+          width: "100%",
         };
 
         const ctaStyle: AnyStyle = {
@@ -861,6 +870,8 @@ export function AdaptiveProvider({
           fontSize: typography.body,
           lineHeight: typography.lineHeight,
           cursor: "pointer",
+          fontWeight: 600,
+          boxShadow: flags.highContrast ? "none" : "0 10px 24px rgba(15, 23, 42, 0.18)",
         };
         mergeStyle(ctaStyle, extensionPromptCtaStyle);
 
@@ -884,6 +895,7 @@ export function AdaptiveProvider({
           fontSize: typography.body,
           lineHeight: typography.lineHeight,
           cursor: "pointer",
+          fontWeight: 500,
         };
         mergeStyle(dismissStyle, extensionPromptDismissStyle);
 
@@ -1042,3 +1054,4 @@ export function useAdaptive(): AdaptiveContextValue {
   if (!ctx) throw new Error("useAdaptive must be used inside <AdaptiveProvider>");
   return ctx;
 }
+
