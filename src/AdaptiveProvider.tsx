@@ -223,6 +223,26 @@ export function AdaptiveProvider({
     }
   }, [behaviorTracker, userId]);
 
+  const lastAppliedProfileLogRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (loading || !profile) return;
+
+    const appliedProfilePayload = {
+      userId: userId || "guest",
+      source,
+      profile,
+    };
+    const snapshot = JSON.stringify(appliedProfilePayload);
+
+    if (lastAppliedProfileLogRef.current === snapshot) return;
+    lastAppliedProfileLogRef.current = snapshot;
+
+    console.info(
+      "[AURA] Applied UI profile\n" +
+        JSON.stringify(appliedProfilePayload, null, 2)
+    );
+  }, [loading, profile, source, userId]);
+
   const [pendingDiffs, setPendingDiffs] = useState<{key: string; oldVal: any; newVal: any; anomalyType?: string; componentId?: string}[]>([]);
   const pendingDiffsRef = useRef(pendingDiffs);
   useEffect(() => { pendingDiffsRef.current = pendingDiffs; }, [pendingDiffs]);
