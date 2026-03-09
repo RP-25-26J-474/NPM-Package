@@ -1,12 +1,86 @@
-// src/components/AdaptiveFeedback.tsx
+﻿// src/components/AdaptiveFeedback.tsx
 import React, { useEffect, useState, type CSSProperties } from "react";
 import { useAdaptive } from "../AdaptiveProvider";
 
+const ANOMALY_META: Record<string, { title: string; description: string }> = {
+  rage_click: {
+    title: "Button Interaction Difficulty",
+    description:
+      "We noticed repeated tapping on interactive elements. Would you like us to increase button and target sizes for easier interaction?",
+  },
+  dead_click: {
+    title: "Navigation Clarity Issue",
+    description:
+      "We noticed taps on non-interactive areas. Would you like us to enhance visual clarity and affordances?",
+  },
+  scroll_thrashing: {
+    title: "Scrolling Difficulty Detected",
+    description:
+      "We noticed rapid back-and-forth scrolling. Would you like us to optimise the layout and element spacing?",
+  },
+};
+
+const DEFAULT_ANOMALY_META = {
+  title: "Interface Difficulty Detected",
+  description:
+    "We detected an unusual interaction pattern. Would you like us to adjust your interface settings?",
+};
+
+const SUGGESTION_META: Record<
+  string,
+  { title: string; getReason: (action: any) => string }
+> = {
+  targetSize: {
+    title: "Touch Target Optimisation",
+    getReason: (action) =>
+      typeof action === "number"
+        ? `Increasing button and touch target size to ${action}px to improve interaction precision.`
+        : "Increasing button and touch target sizes for easier interaction.",
+  },
+  fontSize: {
+    title: "Text Size Adjustment",
+    getReason: (action) =>
+      typeof action === "number"
+        ? `Increasing font size to ${action}px for improved readability.`
+        : "Increasing text size for improved readability.",
+  },
+  contrastMode: {
+    title: "Display Contrast Enhancement",
+    getReason: () =>
+      "Enabling high contrast mode to improve element visibility and reduce eyestrain.",
+  },
+  elementSpacing: {
+    title: "Layout Spacing Optimisation",
+    getReason: (action) =>
+      typeof action === "number"
+        ? `Adjusting element spacing to ${action}px to reduce visual density.`
+        : "Applying optimised layout spacing to improve content flow.",
+  },
+  reducedMotion: {
+    title: "Motion Reduction",
+    getReason: () =>
+      "Disabling animations and transitions to reduce visual distractions.",
+  },
+  layoutSimplification: {
+    title: "Layout Simplification",
+    getReason: () =>
+      "Simplifying the interface layout to reduce visual complexity.",
+  },
+};
+
 export function AdaptiveFeedback() {
-  const { behaviorTracker, userId, apiEndpoint, rlEndpoint, profile, applySettings } = useAdaptive();
-  
-  // State for the new flow
-  const [step, setStep] = useState<"idle" | "validation" | "fetching" | "suggestion">("idle");
+  const {
+    behaviorTracker,
+    userId,
+    apiEndpoint,
+    rlEndpoint,
+    profile,
+    applySettings,
+  } = useAdaptive();
+
+  const [step, setStep] = useState<
+    "idle" | "validation" | "fetching" | "suggestion"
+  >("idle");
   const [anomaly, setAnomaly] = useState<any>(null);
   const [suggestion, setSuggestion] = useState<any>(null);
   const [targetParam, setTargetParam] = useState<string>("");
@@ -14,9 +88,8 @@ export function AdaptiveFeedback() {
   useEffect(() => {
     const handleAnomaly = (event: Event) => {
       const customEvent = event as CustomEvent;
-      console.log("🚨 [AdaptiveFeedback] Anomaly event received:", customEvent.detail);
       setAnomaly(customEvent.detail);
-      setStep("validation"); // Start the flow
+      setStep("validation");
     };
 
     window.addEventListener("aura-anomaly", handleAnomaly);
@@ -28,51 +101,47 @@ export function AdaptiveFeedback() {
     };
   }, []);
 
-  // --- SMART INFERENCE LOGIC ---
   const getSmartSuggestion = (type: string, data?: any) => {
-    // 1. Rage Click (Motor Control)
-    if (type === 'rage_click') {
+    if (type === "rage_click") {
       return {
         category: "Motor Control / Precision",
         issue: "It seems like hitting buttons might be difficult.",
         suggestion: "Increase Button Size",
         actionLabel: "Make Targets Bigger",
-        relevantParam: "targetSize" // Changed to camelCase to match app.py
+        relevantParam: "targetSize",
       };
     }
-    
-    // 2. Dead Click (Vision/Affordance)
-    if (type === 'dead_click') {
-        // If on a text/image element -> Maybe high contrast needed?
-        // If on a container -> maybe element spacing?
-        return {
-          category: "Visual Perception",
-          issue: "It's not clear what is clickable.",
-          suggestion: "High Contrast Mode",
-          actionLabel: "Turn On High Contrast",
-          relevantParam: "contrastMode"
-        };
+    if (type === "dead_click") {
+      return {
+        category: "Visual Perception",
+        issue: "It's not clear what is clickable.",
+        suggestion: "High Contrast Mode",
+        actionLabel: "Turn On High Contrast",
+        relevantParam: "contrastMode",
+      };
     }
-
-    // 3. Scroll Thrashing (Cognitive/Layout)
-    if (type === 'scroll_thrashing') {
-        return {
-          category: "Cognitive Load / Readability",
-          issue: "You might be searching for information.",
-          suggestion: "Simplify Layout & Spacing",
-          actionLabel: "Optimize Layout",
-          relevantParam: "elementSpacing" // Suggest spacing first, or layout_simplification
-        };
+    if (type === "scroll_thrashing") {
+      return {
+        category: "Cognitive Load / Readability",
+        issue: "You might be searching for information.",
+        suggestion: "Simplify Layout & Spacing",
+        actionLabel: "Optimise Layout",
+        relevantParam: "elementSpacing",
+      };
     }
-
-    // 4. Fallback (General)
     return {
       category: "General Usability",
       issue: "You seem to be having trouble.",
       suggestion: "Adjust View Settings",
-      actionLabel: "Optimize View",
-      relevantParam: "theme"
+      actionLabel: "Optimise View",
+      relevantParam: "theme",
     };
+  };
+
+  const handleClose = () => {
+    setStep("idle");
+    setAnomaly(null);
+    setSuggestion(null);
   };
 
   const handleUserValidation = async (confirmed: boolean) => {
@@ -82,60 +151,76 @@ export function AdaptiveFeedback() {
       return;
     }
 
-    // User confirmed -> Neg Feedback for current
     setStep("fetching");
-    
-    // Get parameter from our smart inference
+
     const smartInference = getSmartSuggestion(anomaly.type, anomaly.data);
     const param = smartInference.relevantParam;
-    
     setTargetParam(param);
 
     const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
 
-    // Helper to build a local suggestion without needing the RL backend
-    const buildLocalSuggestion = (p: string): { action: any; reasoning: { recommendation: string }; success: boolean } => {
+    const buildLocalSuggestion = (
+      p: string
+    ): { action: any; reasoning: { recommendation: string }; success: boolean } => {
       const paramMap: Record<string, string> = {
-        'fontSize': 'font_size', 'targetSize': 'target_size', 'contrastMode': 'contrast_mode',
-        'elementSpacing': 'element_spacing_y', 'layoutSimplification': 'layout_simplification',
-        'reducedMotion': 'reduced_motion', 'theme': 'theme'
+        fontSize: "font_size",
+        targetSize: "target_size",
+        contrastMode: "contrast_mode",
+        elementSpacing: "element_spacing_y",
+        layoutSimplification: "layout_simplification",
+        reducedMotion: "reduced_motion",
+        theme: "theme",
       };
       const apiP = paramMap[p] || p;
       const cur = profile?.[apiP as keyof typeof profile];
       let action: any;
       let label: string;
       switch (p) {
-        case 'targetSize':
-          action = Math.min(56, (typeof cur === 'number' ? cur : 32) + 8);
-          label = `Increase touch target size to ${action}px`; break;
-        case 'fontSize':
-          action = Math.min(22, (typeof cur === 'number' ? cur : 16) + 2);
-          label = `Increase font size to ${action}px`; break;
-        case 'contrastMode':
-          action = 'high'; label = 'Enable high contrast mode'; break;
-        case 'elementSpacing':
-          action = Math.min(24, (typeof cur === 'number' ? cur : 10) + 4);
-          label = `Increase element spacing to ${action}px`; break;
-        case 'reducedMotion':
-          action = true; label = 'Enable reduced motion'; break;
-        case 'layoutSimplification':
-          action = true; label = 'Simplify the layout'; break;
+        case "targetSize":
+          action = Math.min(56, (typeof cur === "number" ? cur : 32) + 8);
+          label = `Increase touch target size to ${action}px`;
+          break;
+        case "fontSize":
+          action = Math.min(22, (typeof cur === "number" ? cur : 16) + 2);
+          label = `Increase font size to ${action}px`;
+          break;
+        case "contrastMode":
+          action = "high";
+          label = "Enable high contrast mode";
+          break;
+        case "elementSpacing":
+          action = Math.min(24, (typeof cur === "number" ? cur : 10) + 4);
+          label = `Increase element spacing to ${action}px`;
+          break;
+        case "reducedMotion":
+          action = true;
+          label = "Enable reduced motion";
+          break;
+        case "layoutSimplification":
+          action = true;
+          label = "Simplify the layout";
+          break;
         default:
-          action = cur; label = `Adjust ${p}`;
+          action = cur;
+          label = `Adjust ${p}`;
       }
       return { action, reasoning: { recommendation: label }, success: true };
     };
 
     try {
       const paramMap: Record<string, string> = {
-          'fontSize': 'font_size', 'targetSize': 'target_size', 'contrastMode': 'contrast_mode',
-          'elementSpacing': 'element_spacing', 'layoutSimplification': 'layout_simplification',
-          'reducedMotion': 'reduced_motion', 'theme': 'theme'
+        fontSize: "font_size",
+        targetSize: "target_size",
+        contrastMode: "contrast_mode",
+        elementSpacing: "element_spacing",
+        layoutSimplification: "layout_simplification",
+        reducedMotion: "reduced_motion",
+        theme: "theme",
       };
       const apiParam = paramMap[param] || param;
-      const currentAction = profile?.[apiParam as keyof typeof profile] || "unknown";
+      const currentAction =
+        profile?.[apiParam as keyof typeof profile] || "unknown";
 
-      // 1. Send Negative Feedback (fire-and-forget – don't block on it)
       fetch(`${backendUrl}/rl/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,7 +233,6 @@ export function AdaptiveFeedback() {
         }),
       }).catch(() => {});
 
-      // 2. Ask RL for a Solution
       const response = await fetch(`${backendUrl}/rl/choose-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,22 +240,19 @@ export function AdaptiveFeedback() {
           userId: userId || "guest",
           parameter: param,
           context: { lastFeedback: "negative", avoidCurrent: true },
-          state: { [param]: profile?.[param as keyof typeof profile] }
+          state: { [param]: profile?.[param as keyof typeof profile] },
         }),
       });
-      
+
       const data = await response.json();
       if (data.success) {
         setSuggestion(data);
         setStep("suggestion");
       } else {
-        // RL returned no valid action – use local fallback
         setSuggestion(buildLocalSuggestion(param));
         setStep("suggestion");
       }
-
     } catch (e) {
-      // Backend offline – build suggestion locally so the flow still works
       setSuggestion(buildLocalSuggestion(param));
       setStep("suggestion");
     }
@@ -179,11 +260,10 @@ export function AdaptiveFeedback() {
 
   const handleDismissSuggestion = async () => {
     if (!suggestion || !targetParam) return;
-    
+
     const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
 
     try {
-      // Send Negative Feedback for the REJECTED suggestion
       await fetch(`${backendUrl}/rl/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -195,10 +275,7 @@ export function AdaptiveFeedback() {
           metadata: { source: "ai_suggestion_rejected" },
         }),
       });
-      console.log("Sent negative feedback for rejected suggestion");
-    } catch (e) {
-      console.error("Failed to send rejection feedback:", e);
-    }
+    } catch (e) {}
 
     setStep("idle");
     setAnomaly(null);
@@ -208,26 +285,29 @@ export function AdaptiveFeedback() {
   const handleApplySuggestion = async () => {
     if (!suggestion || !targetParam) return;
 
-    // targetParam is already camelCase (e.g. 'targetSize', 'fontSize') from the RL engine.
-    // handleSettingsUpdate reads camelCase keys — do NOT convert to snake_case here.
-    // Map contrastMode → contrast because handleSettingsUpdate uses settings.contrast
-    const rlToCamel: Record<string, string> = { contrastMode: 'contrast', elementSpacing: 'spacing' };
+    const rlToCamel: Record<string, string> = {
+      contrastMode: "contrast",
+      elementSpacing: "spacing",
+    };
     const settingKey = rlToCamel[targetParam] ?? targetParam;
-    const settingPayload: Record<string, any> = { [settingKey]: suggestion.action };
+    const settingPayload: Record<string, any> = {
+      [settingKey]: suggestion.action,
+    };
 
-    // 1. Apply immediately via context (works offline, no backend required)
     if (applySettings) {
-      applySettings(settingPayload, 'user');
+      applySettings(settingPayload, "user");
     }
 
-    // 2. Fire-and-forget server calls (non-blocking)
     const reportApi = apiEndpoint || "http://localhost:5000/api";
     const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
 
     fetch(`${reportApi}/manual-settings/apply`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: userId || "guest", settings: settingPayload }),
+      body: JSON.stringify({
+        userId: userId || "guest",
+        settings: settingPayload,
+      }),
     }).catch(() => {});
 
     fetch(`${backendUrl}/rl/feedback`, {
@@ -247,11 +327,23 @@ export function AdaptiveFeedback() {
     setSuggestion(null);
   };
 
-  // --- RENDER ---
+  const anomalyMeta =
+    anomaly
+      ? ANOMALY_META[anomaly.type] ?? DEFAULT_ANOMALY_META
+      : DEFAULT_ANOMALY_META;
+
+  const suggestionMeta = SUGGESTION_META[targetParam] ?? {
+    title: "Interface Optimisation",
+    getReason: (_action: any) =>
+      suggestion?.reasoning?.recommendation ??
+      `Adjusting your interface settings to improve your experience.`,
+  };
+
   return React.createElement(
     React.Fragment,
     null,
-    // Debug Button
+
+    // Dev test button
     userId &&
       React.createElement(
         "button",
@@ -266,72 +358,233 @@ export function AdaptiveFeedback() {
             window.dispatchEvent(evt);
           },
           style: {
-            position: "fixed", bottom: 80, right: 20, zIndex: 100000,
-            background: "red", color: "white", padding: "4px 8px", fontSize: "10px",
-            border: "none", borderRadius: "4px", cursor: "pointer",
+            position: "fixed",
+            bottom: 80,
+            right: 20,
+            zIndex: 100000,
+            background: "#111827",
+            color: "white",
+            padding: "4px 10px",
+            fontSize: "10px",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontFamily: "system-ui, sans-serif",
+            letterSpacing: "0.05em",
           },
         },
         "TEST ANOMALY"
       ),
 
-    // Validation Step
-    step === "validation" && anomaly &&
+    // Validation step
+    step === "validation" &&
+      anomaly &&
       React.createElement(
         "div",
-        { style: popupStyle },
-        React.createElement("div", { style: { fontSize: 24, marginBottom: 8 } }, "🤔"),
-        React.createElement("h3", { style: headerStyle }, "Trouble with the interface?"),
-        React.createElement("p", { style: textStyle }, 
-          `We detected a "${anomaly.type}". Is this causing issues?`
-        ),
+        { style: cardStyle },
         React.createElement(
           "div",
-          { style: { display: "flex", gap: 8 } },
-          React.createElement("button", { onClick: () => handleUserValidation(false), style: secondaryButtonStyle }, "No, I'm fine"),
-          React.createElement("button", { onClick: () => handleUserValidation(true), style: primaryButtonStyle }, "Yes, Fix it")
+          { style: headerRowStyle },
+          React.createElement("span", { style: badgeStyle }, "BEHAVIOUR ALERT"),
+          React.createElement(
+            "button",
+            {
+              onClick: handleClose,
+              style: closeButtonStyle,
+              "aria-label": "Close",
+            },
+            "\u00D7"
+          )
+        ),
+        React.createElement("h3", { style: titleStyle }, anomalyMeta.title),
+        React.createElement("div", { style: dividerStyle }),
+        React.createElement("p", { style: bodyTextStyle }, anomalyMeta.description),
+        React.createElement(
+          "div",
+          { style: buttonRowStyle },
+          React.createElement(
+            "button",
+            { onClick: () => handleUserValidation(false), style: ghostButtonStyle },
+            "No thanks"
+          ),
+          React.createElement(
+            "button",
+            { onClick: () => handleUserValidation(true), style: primaryButtonStyle },
+            "Yes, help me fix it"
+          )
         )
       ),
 
-    // Suggestion Step
-    step === "suggestion" && suggestion &&
+    // Fetching step
+    step === "fetching" &&
       React.createElement(
         "div",
-        { style: popupStyle },
-        React.createElement("div", { style: { fontSize: 24, marginBottom: 8 } }, "💡"),
-        React.createElement("h3", { style: headerStyle }, "AI Suggestion"),
-        React.createElement("p", { style: textStyle }, 
-          // Use reason from RL or fallback
-          suggestion.reasoning?.recommendation || `Try setting ${targetParam} to ${suggestion.action}`
-        ),
-        
+        { style: cardStyle },
         React.createElement(
           "div",
-          { style: { marginTop: 12, padding: 8, background: "#f3f4f6", borderRadius: 4, marginBottom: 12, fontSize: 13, fontWeight: "bold", textAlign: "center" } },
-          `${targetParam}: ${suggestion.action}` 
+          { style: headerRowStyle },
+          React.createElement("span", { style: badgeStyle }, "AI SUGGESTION"),
+          React.createElement(
+            "button",
+            {
+              onClick: handleClose,
+              style: closeButtonStyle,
+              "aria-label": "Close",
+            },
+            "\u00D7"
+          )
         ),
-
+        React.createElement("h3", { style: titleStyle }, "Analysing Interaction..."),
+        React.createElement("div", { style: dividerStyle }),
         React.createElement(
-          "div",
-          { style: { display: "flex", gap: 8 } },
-          React.createElement("button", { onClick: handleDismissSuggestion, style: secondaryButtonStyle }, "Dismiss"),
-          React.createElement("button", { onClick: handleApplySuggestion, style: primaryButtonStyle }, "Apply Change")
+          "p",
+          { style: { ...bodyTextStyle, color: "#6b7280", marginBottom: 0 } },
+          "Please wait while we determine the best adjustment for you."
         )
       ),
-      
-    // Fetching Indicator
-    step === "fetching" && 
-      React.createElement("div", { style: popupStyle }, "Consulting AI Agent...")
+
+    // Suggestion step
+    step === "suggestion" &&
+      suggestion &&
+      React.createElement(
+        "div",
+        { style: cardStyle },
+        React.createElement(
+          "div",
+          { style: headerRowStyle },
+          React.createElement("span", { style: badgeStyle }, "AI SUGGESTION"),
+          React.createElement(
+            "button",
+            {
+              onClick: handleClose,
+              style: closeButtonStyle,
+              "aria-label": "Close",
+            },
+            "\u00D7"
+          )
+        ),
+        React.createElement("h3", { style: titleStyle }, suggestionMeta.title),
+        React.createElement("div", { style: dividerStyle }),
+        React.createElement(
+          "p",
+          { style: bodyTextStyle },
+          suggestionMeta.getReason(suggestion.action)
+        ),
+        React.createElement(
+          "div",
+          { style: buttonRowStyle },
+          React.createElement(
+            "button",
+            { onClick: handleDismissSuggestion, style: ghostButtonStyle },
+            "Dismiss"
+          ),
+          React.createElement(
+            "button",
+            { onClick: handleApplySuggestion, style: primaryButtonStyle },
+            "Apply Suggestion"
+          )
+        )
+      )
   );
 }
 
-// Styles (Reused)
-const popupStyle: CSSProperties = {
-  position: "fixed", bottom: 20, right: 20, backgroundColor: "white", padding: 16,
-  borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.2)", border: "1px solid #e5e7eb",
-  zIndex: 99999, maxWidth: 320, animation: "aura-fade-in 0.3s ease-out", fontFamily: "system-ui, sans-serif", color: "black",
-};
-const headerStyle: CSSProperties = { margin: "0 0 8px 0", fontSize: 15, fontWeight: "bold", color: "#1f2937" };
-const textStyle: CSSProperties = { margin: "0 0 16px 0", fontSize: 13, color: "#4b5563", lineHeight: 1.4 };
-const primaryButtonStyle: CSSProperties = { flex: 1, padding: "8px 12px", fontSize: 13, color: "white", background: "#2563eb", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 };
-const secondaryButtonStyle: CSSProperties = { flex: 1, padding: "8px 12px", fontSize: 13, color: "#374151", background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 6, cursor: "pointer" };
+// --- Styles ---
 
+const cardStyle: CSSProperties = {
+  position: "fixed",
+  bottom: 24,
+  right: 24,
+  width: 340,
+  backgroundColor: "#ffffff",
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
+  padding: "20px 20px 16px",
+  zIndex: 99999,
+  fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+  color: "#111827",
+  boxSizing: "border-box",
+};
+
+const headerRowStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 10,
+};
+
+const badgeStyle: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "#6b7280",
+  backgroundColor: "#f3f4f6",
+  padding: "3px 8px",
+  borderRadius: 4,
+};
+
+const closeButtonStyle: CSSProperties = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  fontSize: 18,
+  color: "#9ca3af",
+  padding: "0 2px",
+  lineHeight: "1",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const titleStyle: CSSProperties = {
+  margin: "0 0 10px 0",
+  fontSize: 15,
+  fontWeight: 600,
+  color: "#111827",
+  lineHeight: 1.35,
+};
+
+const dividerStyle: CSSProperties = {
+  height: 1,
+  backgroundColor: "#f3f4f6",
+  marginBottom: 12,
+};
+
+const bodyTextStyle: CSSProperties = {
+  margin: "0 0 16px 0",
+  fontSize: 13,
+  color: "#374151",
+  lineHeight: 1.55,
+};
+
+const buttonRowStyle: CSSProperties = {
+  display: "flex",
+  gap: 8,
+};
+
+const primaryButtonStyle: CSSProperties = {
+  flex: 1,
+  padding: "9px 12px",
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#ffffff",
+  backgroundColor: "#111827",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+  fontFamily: "inherit",
+};
+
+const ghostButtonStyle: CSSProperties = {
+  flex: 1,
+  padding: "9px 12px",
+  fontSize: 13,
+  fontWeight: 500,
+  color: "#374151",
+  backgroundColor: "#f3f4f6",
+  border: "1px solid #e5e7eb",
+  borderRadius: 6,
+  cursor: "pointer",
+  fontFamily: "inherit",
+};

@@ -102,124 +102,112 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
     pausedUntilRef.current = Date.now() + pauseAfterResponseMs;
   };
 
-  if (!showModal) return null;
+  return React.createElement(
+    React.Fragment,
+    null,
 
-  return React.createElement('div', {
-    style: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      zIndex: 100000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backdropFilter: 'blur(4px)'
-    }
-  },
+    // Demo button — dispatches the debug event so the popup can be previewed
+    userId &&
+      React.createElement(
+        'button',
+        {
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('aura-test-temp-user', { bubbles: true }));
+          },
+          style: {
+            position: 'fixed',
+            bottom: 120,
+            right: 20,
+            zIndex: 100000,
+            background: '#374151',
+            color: 'white',
+            padding: '4px 10px',
+            fontSize: '10px',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontFamily: 'system-ui, sans-serif',
+            letterSpacing: '0.05em',
+          },
+        },
+        'TEST TEMP USER'
+      ),
+
+    showModal &&
     React.createElement('div', {
       style: {
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: '32px',
-        width: '90%',
-        maxWidth: '500px',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
-        animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        position: 'fixed',
+        bottom: 24,
+        left: 24,
+        width: 340,
+        backgroundColor: '#ffffff',
+        borderRadius: 10,
+        border: '1px solid #e5e7eb',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)',
+        padding: '20px 20px 16px',
+        zIndex: 99999,
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+        color: '#111827',
+        boxSizing: 'border-box' as const,
       }
     },
-      // Icon
+      // Header row: badge + close
       React.createElement('div', {
-        style: {
-          width: '64px',
-          height: '64px',
-          borderRadius: '50%',
-          backgroundColor: '#FFF4E5',
-          color: '#FF9800',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '32px',
-          margin: '0 auto 24px auto'
-        }
-      }, '🛡️'),
+        style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }
+      },
+        React.createElement('span', {
+          style: {
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+            color: '#6b7280', backgroundColor: '#f3f4f6', padding: '3px 8px', borderRadius: 4,
+          }
+        }, 'SESSION ALERT'),
+        React.createElement('button', {
+          onClick: handleKeep,
+          'aria-label': 'Close',
+          style: {
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 18, color: '#9ca3af', padding: '0 2px', lineHeight: '1',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }
+        }, '\u00D7')
+      ),
 
       // Title
-      React.createElement('h2', {
-        style: {
-          textAlign: 'center',
-          color: '#1A202C',
-          fontSize: '24px',
-          fontWeight: '700',
-          marginBottom: '12px',
-          fontFamily: 'system-ui, -apple-system, sans-serif'
-        }
-      }, 'Optimize Your Experience?'),
+      React.createElement('h3', {
+        style: { margin: '0 0 10px 0', fontSize: 15, fontWeight: 600, color: '#111827', lineHeight: 1.35 }
+      }, 'Unusual Interaction Detected'),
+
+      // Divider
+      React.createElement('div', { style: { height: 1, backgroundColor: '#f3f4f6', marginBottom: 12 } }),
 
       // Description
       React.createElement('p', {
-        style: {
-          textAlign: 'center',
-          color: '#4A5568',
-          fontSize: '16px',
-          lineHeight: '1.6',
-          marginBottom: '32px',
-          fontFamily: 'system-ui, -apple-system, sans-serif'
-        }
-      }, `We noticed some unusual activity on your account. Would you like to temporarily reset to default settings for this session, or keep your current personalized settings?`),
+        style: { margin: '0 0 16px 0', fontSize: 13, color: '#374151', lineHeight: 1.55 }
+      }, 'Your interaction pattern differs from your saved profile. Would you like to keep your personalised settings or reset to defaults for this session?'),
 
       // Buttons
-      React.createElement('div', { style: { display: 'flex', gap: '16px' } },
+      React.createElement('div', { style: { display: 'flex', gap: 8 } },
         React.createElement('button', {
           onClick: handleKeep,
           disabled: isApplying,
           style: {
-            flex: 1,
-            padding: '14px',
-            borderRadius: '12px',
-            border: '2px solid #E2E8F0',
-            backgroundColor: 'transparent',
-            color: '#4A5568',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          },
-          onMouseOver: (e: any) => e.target.style.backgroundColor = '#F7FAFC',
-          onMouseOut: (e: any) => e.target.style.backgroundColor = 'transparent'
+            flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 500,
+            color: '#374151', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb',
+            borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+          }
         }, 'Keep Settings'),
 
         React.createElement('button', {
           onClick: handleResetTemporary,
           disabled: isApplying,
           style: {
-            flex: 1,
-            padding: '14px',
-            borderRadius: '12px',
-            border: 'none',
-            backgroundColor: '#3182CE',
-            color: 'white',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(49, 130, 206, 0.4)',
-            transition: 'all 0.2s',
-            opacity: isApplying ? 0.7 : 1
-          },
-          onMouseOver: (e: any) => !isApplying && (e.target.style.transform = 'translateY(-2px)'),
-          onMouseOut: (e: any) => !isApplying && (e.target.style.transform = 'translateY(0)')
-        }, isApplying ? 'Applying...' : 'Reset Temporarily')
-      ),
-
-      // Animation Styles
-      React.createElement('style', {}, `
-        @keyframes popIn {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `)
+            flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 600,
+            color: '#ffffff', backgroundColor: '#111827', border: 'none',
+            borderRadius: 6, cursor: isApplying ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit', opacity: isApplying ? 0.6 : 1,
+          }
+        }, isApplying ? 'Applying...' : 'Reset for Session')
+      )
     )
   );
 }

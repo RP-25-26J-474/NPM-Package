@@ -48,6 +48,50 @@ const DEFAULT_EXTENSION_PROMPT_CTA = "Get AURA Extension";
 const DEFAULT_EXTENSION_PROMPT_DISMISS_LABEL = "Not now";
 const DEFAULT_EXTENSION_PROMPT_STORAGE_KEY = "__aura_ext_prompt_seen_v1";
 
+// ── Anomaly ↔ profile-attribute correlation ───────────────────────────────
+// Maps each behaviour anomaly type to the profile knobs most likely responsible
+// for the user's frustration.  Keys match ProfileKnobs / AuraProfileV2 field names.
+const ANOMALY_PROFILE_KEYS: Record<string, string[]> = {
+  rage_click:    ['target_size', 'font_size', 'element_padding_x', 'element_padding_y', 'layout_simplification'],
+  dead_click:    ['target_size', 'layout_simplification', 'tooltip_assist', 'font_size'],
+  scroll_thrash: ['element_spacing_y', 'element_spacing_x', 'layout_simplification', 'line_height'],
+};
+
+/**
+ * Given a list of pending profile diffs and the anomaly context, returns the
+ * index of the diff whose key is most likely related to the behaviour issue.
+ * Falls back to index 0 if no specific match is found.
+ */
+function pickRelevantDiff(
+  diffs:       { key: string; oldVal: any; newVal: any }[],
+  anomalyType: string,
+  tagName:     string,
+  componentId: string,
+): number {
+  if (diffs.length === 0) return 0;
+
+  // Boost specific key priorities based on element type
+  const isTextEl =
+    ['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'label'].includes(tagName) ||
+    /text|label|heading/i.test(componentId);
+  const isLinkEl = tagName === 'a' || /link/i.test(componentId);
+
+  const priority: string[] = isTextEl
+    ? ['font_size', 'line_height', 'contrast_mode', ...(ANOMALY_PROFILE_KEYS[anomalyType] ?? [])]
+    : isLinkEl
+    ? ['primary_color', 'contrast_mode', 'font_size', ...(ANOMALY_PROFILE_KEYS[anomalyType] ?? [])]
+    : (ANOMALY_PROFILE_KEYS[anomalyType] ?? []);
+
+  if (priority.length === 0) return 0;
+
+  // Walk priority list, return first index that matches a pending diff key
+  for (const key of priority) {
+    const idx = diffs.findIndex(d => d.key === key);
+    if (idx >= 0) return idx;
+  }
+  return 0;
+}
+
 function mergeStyle(target: AnyStyle, incoming: any) {
   if (!incoming) return;
   const keys = Object.keys(incoming);
@@ -179,7 +223,7 @@ export function AdaptiveProvider({
     }
   }, [behaviorTracker, userId]);
 
-  const [pendingDiffs, setPendingDiffs] = useState<{key: string; oldVal: any; newVal: any}[]>([]);
+  const [pendingDiffs, setPendingDiffs] = useState<{key: string; oldVal: any; newVal: any; anomalyType?: string; componentId?: string}[]>([]);
   const pendingDiffsRef = useRef(pendingDiffs);
   useEffect(() => { pendingDiffsRef.current = pendingDiffs; }, [pendingDiffs]);
 
@@ -201,13 +245,23 @@ export function AdaptiveProvider({
      if (!(isLoggedInUserId(userId) || isLoggedInUserId(initialUserId))) return;
 
      const handleAnomaly = (e: any) => {
+        // Extract context from the anomaly event fired by BehaviorTracker
+        const anomalyType: string = (e as CustomEvent)?.detail?.type ?? '';
+        const detail      = (e as CustomEvent)?.detail?.data ?? {};
+        const componentId: string = detail.componentId ?? '';
+        const tagName:     string = (detail.targetMetadata?.tagName ?? '').toLowerCase();
+
         setMlChangedSettings(prev => {
-            if (prev.length === 0) return prev;
-            if (pendingDiffsRef.current.length > 0) return prev; // Already asking
-            
-            // Move the first item to pendingDiffs
-            const [first, ...rest] = prev;
-            setPendingDiffs([first]);
+            if (prev.length === 0) return prev;           // No queued profile changes → nothing to ask
+            if (pendingDiffsRef.current.length > 0) return prev; // Already showing a prompt
+
+            // Pick the diff whose attribute is most relevant to the behaviour issue
+            const idx     = pickRelevantDiff(prev, anomalyType, tagName, componentId);
+            const selected = prev[idx];
+            const rest     = prev.filter((_, i) => i !== idx);
+
+            // Tag the selected diff with anomaly context so the prompt can tailor its message
+            setPendingDiffs([{ ...selected, anomalyType: anomalyType || undefined, componentId: componentId || undefined }]);
             return rest;
         });
      };
@@ -943,7 +997,11 @@ export function AdaptiveProvider({
           mlConfidence: mlConfidence,
           source: settingsSource as 'ml' | 'manual' | 'trial',
           apiEndpoint: apiEndpoint || "",
-          onFeedback: handleSettingsFeedback
+          onFeedback: handleSettingsFeedback,
+          // Pass the behaviour context so the prompt can show a relevant message
+          anomalyContext: pendingDiffs[0].anomalyType
+            ? { type: pendingDiffs[0].anomalyType, componentId: pendingDiffs[0].componentId }
+            : undefined,
       }) : null,
       (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)) && activeFeedbackComponent && React.createElement(ComponentFeedbackModal, {
           componentId: activeFeedbackComponent.id,
