@@ -26,7 +26,7 @@ import {
 
 export function App() {
   return (
-    <AdaptiveProvider simulateExtensionInstalled>
+    <AdaptiveProvider simulateExtensionInstalled={false}>
       <main>
         <AdaptiveText variant="h1">Welcome to AURA</AdaptiveText>
         <AdaptiveButton variant="primary">Continue</AdaptiveButton>
@@ -36,44 +36,12 @@ export function App() {
 }
 ```
 
-## Using the Hook
-
-```tsx
-import React from "react";
-import { AdaptiveProvider, useAdaptive } from "@aura-adaptive/aura-ui-adaptor";
-
-function ProfileSummary() {
-  const { loading, source, tokens, profile, reload } = useAdaptive();
-
-  if (loading) return <p>Loading personalization...</p>;
-
-  return (
-    <section>
-      <p>Source: {source}</p>
-      <p>Theme: {tokens.flags.theme}</p>
-      <p>Base font size: {tokens.typography.baseSize}</p>
-      <p>Reduced motion: {String(profile?.reduced_motion)}</p>
-      <button onClick={() => void reload()}>Reload profile</button>
-    </section>
-  );
-}
-
-export function App() {
-  return (
-    <AdaptiveProvider>
-      <ProfileSummary />
-    </AdaptiveProvider>
-  );
-}
-```
-
 ## Provider Behavior
 
-`AdaptiveProvider` supports three loading paths:
+`AdaptiveProvider` supports these loading paths:
 
-1. `simulateExtensionInstalled={true}` uses local mock data for development.
-2. Default extension mode tries to read the active profile from the AURA browser extension.
-3. If no extension profile is available, the provider falls back to the bundled prediction model and cached fallback data.
+1. Default extension mode tries to read the active profile from the AURA browser extension.
+2. If no extension profile is available, the provider falls back to the bundled prediction model and cached fallback data.
 
 When the extension is unavailable, the provider can also render a configurable installation prompt.
 
@@ -104,8 +72,6 @@ The package exports:
 - `AdaptiveTextarea`
 - `AdaptiveTooltip`
 
-It also exports the `AuraProfileV2`, `AuraMlEnvelopeV2`, `AuraTokens`, and `AdaptiveContextValue` TypeScript types.
-
 ## Build
 
 ```bash
@@ -117,3 +83,5 @@ The published package includes only the built `dist/` output, this README, and t
 ## License
 
 MIT
+
+
