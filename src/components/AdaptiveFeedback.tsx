@@ -343,39 +343,6 @@ export function AdaptiveFeedback() {
     React.Fragment,
     null,
 
-    // Dev test button
-    userId &&
-      React.createElement(
-        "button",
-        {
-          onClick: () => {
-            const types = ["rage_click", "dead_click", "scroll_thrashing"];
-            const randomType = types[Math.floor(Math.random() * types.length)];
-            const evt = new CustomEvent("aura-anomaly", {
-              bubbles: true,
-              detail: { type: randomType, data: { timestamp: Date.now() } },
-            });
-            window.dispatchEvent(evt);
-          },
-          style: {
-            position: "fixed",
-            bottom: 80,
-            right: 20,
-            zIndex: 100000,
-            background: "#111827",
-            color: "white",
-            padding: "4px 10px",
-            fontSize: "10px",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontFamily: "system-ui, sans-serif",
-            letterSpacing: "0.05em",
-          },
-        },
-        "TEST ANOMALY"
-      ),
-
     // Validation step
     step === "validation" &&
       anomaly &&
