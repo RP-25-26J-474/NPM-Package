@@ -106,33 +106,6 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
     React.Fragment,
     null,
 
-    // Demo button — dispatches the debug event so the popup can be previewed
-    userId &&
-      React.createElement(
-        'button',
-        {
-          onClick: () => {
-            window.dispatchEvent(new CustomEvent('aura-test-temp-user', { bubbles: true }));
-          },
-          style: {
-            position: 'fixed',
-            bottom: 120,
-            right: 20,
-            zIndex: 100000,
-            background: '#374151',
-            color: 'white',
-            padding: '4px 10px',
-            fontSize: '10px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontFamily: 'system-ui, sans-serif',
-            letterSpacing: '0.05em',
-          },
-        },
-        'TEST TEMP USER'
-      ),
-
     showModal &&
     React.createElement('div', {
       style: {
