@@ -7,49 +7,52 @@ export interface AdaptiveTempUserPromptProps {
   tracker: BehaviorTracker | null;
   enabled?: boolean;
   checkInterval?: number;
+  /** Called when the user chooses "Reset Temporarily" — apply default settings in-session */
   onResetConfirmed?: () => void;
+  /** Milliseconds to pause re-checks after any user response (default 10 min) */
+  pauseAfterResponseMs?: number;
 }
 
 export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
-  const { userId, apiEndpoint, tracker, enabled = true, checkInterval = 15000, onResetConfirmed } = props;
+  const {
+    userId, apiEndpoint, tracker,
+    enabled = true,
+    checkInterval = 15000,
+    onResetConfirmed,
+    pauseAfterResponseMs = 600_000,
+  } = props;
 
-  const [isTempUser, setIsTempUser] = useState(false);
   const [detectionReason, setDetectionReason] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
-  
-  const checkTimerRef = useRef<number | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
+
+  const checkTimerRef  = useRef<number | null>(null);
+  const pausedUntilRef = useRef<number>(0);   // epoch ms — no checks before this time
 
   useEffect(() => {
     if (!enabled || !tracker) return;
 
     const checkTempStatus = async () => {
-      // Don't check if already showing modal
       if (showModal) return;
+      if (Date.now() < pausedUntilRef.current) return;   // still in grace period
 
       const metrics = tracker.getAnomalyMetrics();
       const recentInteractions = tracker.getRecentInteractions();
 
-      // Only check if there's enough activity (e.g., > 5 clicks)
       if (metrics.clickCount < 5) return;
 
       try {
         const response = await fetch(`${apiEndpoint.replace(/\/+$/, "")}/temp-user/check`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            metrics,
-            recent_interactions: recentInteractions
-          })
+          body: JSON.stringify({ userId, metrics, recent_interactions: recentInteractions })
         });
 
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.isTempUser) {
             console.warn('[AdaptiveTempUserPrompt] Temp user detected:', result.reason);
-            setIsTempUser(true);
-            setDetectionReason(result.reason || 'Unusual activity detected');
+            setDetectionReason(result.reason || 'unusual_activity');
             setShowModal(true);
           }
         }
@@ -58,18 +61,14 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
       }
     };
 
-    // Initial check after 5s, then periodic
     const initialTimer = setTimeout(checkTempStatus, 5000);
     checkTimerRef.current = window.setInterval(checkTempStatus, checkInterval);
 
-    // Debug listener
     const handleDebugTrigger = () => {
-      console.log('⚡ Debug trigger received: Forcing Temp User Popup');
-      setIsTempUser(true);
-      setDetectionReason('Manual Debug Trigger');
+      console.log('⚡ Debug trigger: forcing temp-user popup');
+      setDetectionReason('debug_trigger');
       setShowModal(true);
     };
-
     if (typeof window !== 'undefined') {
       window.addEventListener('aura-test-temp-user', handleDebugTrigger);
     }
@@ -83,32 +82,24 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
     };
   }, [enabled, tracker, showModal, apiEndpoint, userId, checkInterval]);
 
-  const handleReset = async () => {
-    setIsResetting(true);
+  /** "Reset Temporarily" — apply default profile for this session, no DB write */
+  const handleResetTemporary = async () => {
+    setIsApplying(true);
     try {
-      // Call reset endpoint
-      await fetch(`${apiEndpoint}/users/${userId}/reset`, { method: 'POST' });
-      
-      // Also notify parent/reload
       if (onResetConfirmed) {
         onResetConfirmed();
-      } else {
-        window.location.reload();
       }
-      
-      setShowModal(false);
-    } catch (error) {
-      console.error('Error resetting settings:', error);
-      alert('Failed to reset settings. Please try again.');
     } finally {
-      setIsResetting(false);
+      setIsApplying(false);
+      setShowModal(false);
+      pausedUntilRef.current = Date.now() + pauseAfterResponseMs;
     }
   };
 
-  const handleDismiss = () => {
+  /** "Keep Settings" — dismiss and pause re-checks */
+  const handleKeep = () => {
     setShowModal(false);
-    // Pause checking for a while? Or just let it re-trigger if behavior continues?
-    // For now, let's just close it.
+    pausedUntilRef.current = Date.now() + pauseAfterResponseMs;
   };
 
   if (!showModal) return null;
@@ -177,13 +168,13 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
           marginBottom: '32px',
           fontFamily: 'system-ui, -apple-system, sans-serif'
         }
-      }, `We detected some ${detectionReason === 'erratic_mouse_movement' ? 'erratic mouse movement' : 'unusual activity'}. Would you like to reset to the default view for a cleaner experience?`),
+      }, `We noticed some unusual activity on your account. Would you like to temporarily reset to default settings for this session, or keep your current personalized settings?`),
 
       // Buttons
       React.createElement('div', { style: { display: 'flex', gap: '16px' } },
         React.createElement('button', {
-          onClick: handleDismiss,
-          disabled: isResetting,
+          onClick: handleKeep,
+          disabled: isApplying,
           style: {
             flex: 1,
             padding: '14px',
@@ -198,11 +189,11 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
           },
           onMouseOver: (e: any) => e.target.style.backgroundColor = '#F7FAFC',
           onMouseOut: (e: any) => e.target.style.backgroundColor = 'transparent'
-        }, 'No, Keep Custom'),
+        }, 'Keep Settings'),
 
         React.createElement('button', {
-          onClick: handleReset,
-          disabled: isResetting,
+          onClick: handleResetTemporary,
+          disabled: isApplying,
           style: {
             flex: 1,
             padding: '14px',
@@ -215,11 +206,11 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
             cursor: 'pointer',
             boxShadow: '0 4px 14px rgba(49, 130, 206, 0.4)',
             transition: 'all 0.2s',
-            opacity: isResetting ? 0.7 : 1
+            opacity: isApplying ? 0.7 : 1
           },
-          onMouseOver: (e: any) => !isResetting && (e.target.style.transform = 'translateY(-2px)'),
-          onMouseOut: (e: any) => !isResetting && (e.target.style.transform = 'translateY(0)')
-        }, isResetting ? 'Resetting...' : 'Yes, Reset View')
+          onMouseOver: (e: any) => !isApplying && (e.target.style.transform = 'translateY(-2px)'),
+          onMouseOut: (e: any) => !isApplying && (e.target.style.transform = 'translateY(0)')
+        }, isApplying ? 'Applying...' : 'Reset Temporarily')
       ),
 
       // Animation Styles

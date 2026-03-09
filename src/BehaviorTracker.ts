@@ -83,6 +83,7 @@ export class BehaviorTracker {
   private scrollHistory: Array<{ timestamp: number; direction: 'up' | 'down'; scrollTop: number }> = [];
   private lastScrollTop: number = 0;
   private lastThrashTime: number = 0;
+  private totalScrollPx: number = 0; // cumulative absolute scroll pixels for velocity
 
   private lastClickTime: { x: number; y: number; time: number } | null = null;
   private clickTimes: number[] = [];
@@ -394,6 +395,7 @@ export class BehaviorTracker {
     const diff = scrollTop - this.lastScrollTop;
     
     if (Math.abs(diff) > 10) { // Ignore micro-scrolls
+        this.totalScrollPx += Math.abs(diff); // accumulate for velocity
         const direction = diff > 0 ? 'down' : 'up';
         
         // Add to history
@@ -597,6 +599,10 @@ export class BehaviorTracker {
    */
   public async flushMetrics(synchronous: boolean = false) {
     if (this.isDestroyed) return;
+    if (!this.config.apiEndpoint) {
+      this.log('No apiEndpoint configured — skipping metrics flush');
+      return;
+    }
 
     // Update duration
     this.metrics.duration = Date.now() - this.sessionStart;
@@ -654,6 +660,7 @@ export class BehaviorTracker {
    * Get anomaly metrics for detection
    */
   public getAnomalyMetrics() {
+    const sessionSec = Math.max(1, (Date.now() - this.sessionStart) / 1000);
     return {
       clickCount: this.metrics.clickCount || 0,
       misclickCount: this.metrics.misclickCount || 0,
@@ -665,7 +672,10 @@ export class BehaviorTracker {
       mouseDistance: this.metrics.mouseDistance || 0,
       mouseMovingTime: this.metrics.mouseMovingTime || 0,
       focusCount: this.metrics.focusCount || 0,
-      blurCount: this.metrics.blurCount || 0
+      blurCount: this.metrics.blurCount || 0,
+      // Fields consumed by temp-user detection feature vector
+      zoomEventCount: this.metrics.zoomEventCount || 0,
+      scrollVelocity: Math.round(this.totalScrollPx / sessionSec), // px/s
     };
   }
 

@@ -114,7 +114,7 @@ export function AdaptiveProvider({
   children,
   userId: initialUserId,
   simulateExtensionInstalled = false,
-  apiEndpoint,
+  apiEndpoint = process.env.AURA_API_ENDPOINT,
   enableBehaviorTracking = true,
   debugMode = false,
   showExtensionPrompt = true,
@@ -129,7 +129,7 @@ export function AdaptiveProvider({
   extensionPromptDismissStyle,
   extensionPromptStorageKey = DEFAULT_EXTENSION_PROMPT_STORAGE_KEY,
   onExtensionPromptDismiss,
-  rlEndpoint,
+  rlEndpoint = process.env.AURA_RL_ENDPOINT,
   mode = "standard",
 }: AdaptiveProviderProps & { mode?: "standard" | "trial-based" }) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
@@ -338,12 +338,14 @@ export function AdaptiveProvider({
 
     // Persist the update to localStorage and POST to server.
     // Skip when source is 'sse:...' (update arrived from SSE) to prevent echo loop.
-    if (storeUpdateRef.current && source !== 'revert' && !source.startsWith('sse:')) {
+    // Skip when source is 'temp_reset' — session-only change, never written to DB.
+    if (storeUpdateRef.current && source !== 'revert' && source !== 'temp_reset' && !source.startsWith('sse:')) {
       storeUpdateRef.current(updatedProfile, source);
     }
 
-    // Push updated profile back to extension storage so it persists across refresh
-    if (extensionInstalledRef.current && isLoggedInUserId(userIdRef.current)) {
+    // Push updated profile back to extension storage so it persists across refresh.
+    // Skip for temp_reset — the extension profile should remain unchanged.
+    if (extensionInstalledRef.current && isLoggedInUserId(userIdRef.current) && source !== 'temp_reset') {
       saveAdaptiveProfileToExtension(updatedProfile, userIdRef.current!);
     }
   }, [isSignificantDeviation]);
@@ -955,6 +957,21 @@ export function AdaptiveProvider({
           apiEndpoint: apiEndpoint || "",
           tracker: behaviorTracker,
           enabled: enableBehaviorTracking,
+          onResetConfirmed: () => {
+            // Apply the default (guest) profile for this session only.
+            // 'temp_reset' source skips localStorage / server / extension persistence.
+            handleSettingsUpdate({
+              fontSize:    initialProfile.font_size,
+              lineHeight:  initialProfile.line_height,
+              contrast:    initialProfile.contrast_mode,
+              theme:       initialProfile.theme,
+              targetSize:  initialProfile.target_size,
+              spacing:     initialProfile.element_spacing_y,
+              reducedMotion:       initialProfile.reduced_motion,
+              tooltipAssist:       initialProfile.tooltip_assist,
+              layoutSimplification: initialProfile.layout_simplification,
+            }, 'temp_reset');
+          },
       }),
       (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)) && enableBehaviorTracking && React.createElement(AdaptiveFeedback, null),
       children
