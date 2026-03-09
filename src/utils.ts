@@ -258,7 +258,7 @@ export const mockFetchAuraEnvelope = async (
       }
     }
   } catch (err) {
-    console.warn("[AURA] Could not fetch live profile from backend, falling back to local defaults.", err);
+    //console.warn("[AURA] Could not fetch live profile from backend, falling back to local defaults.", err);
   }
 
   return DEFAULT_GUEST_ENVELOPE;

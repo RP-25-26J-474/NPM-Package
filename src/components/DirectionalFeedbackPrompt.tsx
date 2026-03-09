@@ -57,7 +57,7 @@ export function DirectionalFeedbackPrompt({
       // Hide prompt after feedback
       setTimeout(() => setVisible(false), 500);
     } catch (err) {
-      console.error('[AURA] Failed to submit feedback:', err);
+      //console.error('[AURA] Failed to submit feedback:', err);
     } finally {
       setSubmitting(false);
     }

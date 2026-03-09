@@ -98,9 +98,9 @@ export function AdaptiveChangeConfirmation({
 
       // Apply changes by reloading with approved flag
       setVisible(false);
-      console.log('[AURA] User approved changes, applying...');
+      //console.log('[AURA] User approved changes, applying...');
     } catch (err) {
-      console.error('[AURA] Failed to approve changes:', err);
+      //console.error('[AURA] Failed to approve changes:', err);
     } finally {
       setDeciding(false);
     }
@@ -125,14 +125,14 @@ export function AdaptiveChangeConfirmation({
       }
 
       setVisible(false);
-      console.log('[AURA] User rejected changes, keeping baseline');
+      //console.log('[AURA] User rejected changes, keeping baseline');
       
       // Reload to get baseline
       if (reload) {
         await reload();
       }
     } catch (err) {
-      console.error('[AURA] Failed to reject changes:', err);
+      //console.error('[AURA] Failed to reject changes:', err);
     } finally {
       setDeciding(false);
     }

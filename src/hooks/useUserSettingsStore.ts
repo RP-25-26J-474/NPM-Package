@@ -186,11 +186,11 @@ export function useUserSettingsStore({
       );
       if (res.ok) {
         const json = await res.json();
-        console.log('[AURA EOD] ML sync complete:', json);
+        //console.log('[AURA EOD] ML sync complete:', json);
         onEodRef.current?.({ sent: json.sent ?? 0 });
       }
     } catch (err) {
-      console.warn('[AURA EOD] ML sync failed (will retry tomorrow):', err);
+      //console.warn('[AURA EOD] ML sync failed (will retry tomorrow):', err);
     }
   }, [base, userId]);
 
@@ -212,7 +212,7 @@ export function useUserSettingsStore({
     serverPost(patch, src);
 
     onUpdatedRef.current?.(merged, src);
-    console.log(`[AURA Settings] Updated (${src}):`, Object.keys(patch).join(', '));
+    //console.log(`[AURA Settings] Updated (${src}):`, Object.keys(patch).join(', '));
   }, [userId, serverPost]);
 
   // ── initialisation ─────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ export function useUserSettingsStore({
         saveToLocalStorage(userId, merged);
         setIsLoaded(true);
         onLoadedRef.current?.(merged, 'extension');
-        console.log('[AURA Settings] Loaded from extension.');
+        //console.log('[AURA Settings] Loaded from extension.');
         serverPost(extProfile, 'extension'); // persist to server too
         return;
       }
@@ -245,7 +245,7 @@ export function useUserSettingsStore({
         setSource('localstorage');
         setIsLoaded(true);
         onLoadedRef.current?.(cached, 'localstorage');
-        console.log('[AURA Settings] Loaded from localStorage.');
+        //console.log('[AURA Settings] Loaded from localStorage.');
       }
 
       // Step 3 – try server (async, will update state when it arrives)
@@ -258,7 +258,7 @@ export function useUserSettingsStore({
         saveToLocalStorage(userId, merged);
         setIsLoaded(true);
         onLoadedRef.current?.(merged, 'dashboard');
-        console.log('[AURA Settings] Loaded from server.');
+        //console.log('[AURA Settings] Loaded from server.');
       }
 
       if (!cached && !serverProfile) {
@@ -276,10 +276,10 @@ export function useUserSettingsStore({
 
     function scheduleNext() {
       const delay = msUntilHour(eodHour);
-      console.log(
-        `[AURA EOD] Next sync at ${eodHour}:00 local time ` +
-        `(in ${Math.round(delay / 60000)} min)`,
-      );
+      // console.log(
+      //   `[AURA EOD] Next sync at ${eodHour}:00 local time ` +
+      //   `(in ${Math.round(delay / 60000)} min)`,
+      // );
       eodTimerRef.current = setTimeout(async () => {
         await triggerEodSync();
         scheduleNext(); // reschedule for the next day

@@ -77,7 +77,7 @@ export function useTrialManager(
   const proposeTrial = useCallback(
     async (mlSuggestedProfile?: Record<string, string>) => {
       try {
-        console.log('[Trial Manager] Proposing trial for user:', userId);
+        //console.log('[Trial Manager] Proposing trial for user:', userId);
         const response = await fetch(`${apiEndpoint}/trials/propose`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -93,11 +93,11 @@ export function useTrialManager(
         });
 
         const data = await response.json();
-        console.log('[Trial Manager] Proposal response:', data);
+        //console.log('[Trial Manager] Proposal response:', data);
 
         if (data.success && data.hasTrial) {
           const proposal = data.proposal;
-          console.log('[Trial Manager] Trial proposed:', proposal);
+          //console.log('[Trial Manager] Trial proposed:', proposal);
           const trial: Trial = {
             trialId: '',
             settingKey: proposal.settingKey,
@@ -110,7 +110,7 @@ export function useTrialManager(
           await startTrial(trial);
         }
       } catch (error) {
-        console.error('[useTrialManager] Error proposing trial:', error);
+        //console.error('[useTrialManager] Error proposing trial:', error);
       }
     },
     [userId, apiEndpoint, sessionId]
@@ -121,7 +121,7 @@ export function useTrialManager(
    */
   const startTrial = useCallback(async (trial: Trial) => {
     try {
-      console.log('[Trial Manager] Starting trial:', trial);
+      //console.log('[Trial Manager] Starting trial:', trial);
       const response = await fetch(`${apiEndpoint}/trials/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,14 +139,14 @@ export function useTrialManager(
       });
 
       const data = await response.json();
-      console.log('[Trial Manager] Start response:', data);
+      //console.log('[Trial Manager] Start response:', data);
 
       if (data.success) {
         const fullTrial: Trial = {
           ...trial,
           trialId: data.trialId,
         };
-        console.log('[Trial Manager] Trial started successfully:', fullTrial);
+        //console.log('[Trial Manager] Trial started successfully:', fullTrial);
 
         // Apply trial settings
         setActiveTrial(fullTrial);
@@ -167,9 +167,9 @@ export function useTrialManager(
         // Set evaluation timer (60 seconds)
         if (timerRef.current) clearTimeout(timerRef.current);
         const evalWindow = data.evaluationWindow || 60000;
-        console.log(`[Trial Manager] Evaluation scheduled in ${evalWindow}ms (${evalWindow/1000}s)`);
+        //console.log(`[Trial Manager] Evaluation scheduled in ${evalWindow}ms (${evalWindow/1000}s)`);
         timerRef.current = setTimeout(() => {
-          console.log('[Trial Manager] Evaluation triggered: timeout reached');
+          //console.log('[Trial Manager] Evaluation triggered: timeout reached');
           evaluateTrial(fullTrial);
         }, evalWindow);
 
@@ -177,7 +177,7 @@ export function useTrialManager(
         startMetricsCollection();
       }
     } catch (error) {
-      console.error('[useTrialManager] Error starting trial:', error);
+      //console.error('[useTrialManager] Error starting trial:', error);
     }
   }, [userId, apiEndpoint, sessionId]);
 
@@ -214,7 +214,7 @@ export function useTrialManager(
           }
         }
       } catch (error) {
-        console.error('[useTrialManager] Error evaluating trial:', error);
+        //console.error('[useTrialManager] Error evaluating trial:', error);
       }
     },
     [apiEndpoint]
@@ -265,7 +265,7 @@ export function useTrialManager(
           }
         }
       } catch (error) {
-        console.error('[useTrialManager] Error submitting feedback:', error);
+        //console.error('[useTrialManager] Error submitting feedback:', error);
       }
     },
     [activeTrial, apiEndpoint, startTrial]
@@ -345,7 +345,7 @@ export function useTrialManager(
    */
   useEffect(() => {
     if (mode === 'trial-based') {
-      console.log('[Trial Manager] Initialized in trial-based mode');
+      //console.log('[Trial Manager] Initialized in trial-based mode');
       // Propose initial trial
       proposeTrial();
     }

@@ -448,7 +448,7 @@ export function AdaptiveProvider({
       // The SSE stream will propagate the change to other open tabs.
     },
     onEodSyncComplete: ({ sent }) => {
-      console.log(`[AURA EOD] ✅ ${sent} setting change(s) sent to ML engine.`);
+      //console.log(`[AURA EOD] ✅ ${sent} setting change(s) sent to ML engine.`);
     },
   });
   // Keep ref in sync so handleSettingsUpdate can call storeUpdateSettings
@@ -580,7 +580,7 @@ export function AdaptiveProvider({
           applySuggestion(buildLocalComponentSuggestion(data.issue, activeFeedbackComponent.type));
         }
       } catch (err) {
-        console.warn("[AdaptiveProvider] Component feedback server unreachable – applying local suggestion.");
+        //console.warn("[AdaptiveProvider] Component feedback server unreachable – applying local suggestion.");
         applySuggestion(buildLocalComponentSuggestion(data.issue, activeFeedbackComponent.type));
       }
     } else {
@@ -605,7 +605,7 @@ export function AdaptiveProvider({
         setIsExtensionLoggedIn(isLoggedInUserId(effectiveUserId));
         applyEnvelope(env, (v) => setUserId(v), setSource, setProfile, setTokens, handleProfileDiff);
       } catch (err) {
-        console.error("[AURA] Failed to load personalization (mock)", err);
+        //console.error("[AURA] Failed to load personalization (mock)", err);
         setError("Failed to load personalization");
         setSource("fallback");
         setUserId("guest");
@@ -676,7 +676,7 @@ export function AdaptiveProvider({
         handleProfileDiff
       );
     } catch (err) {
-      console.error("[AURA] Extension path failed", err);
+      //console.error("[AURA] Extension path failed", err);
       setError("Failed to load personalization from extension");
       setIsExtensionLoggedIn(false);
       await loadFallback(setUserId, setSource, setProfile, setTokens);
@@ -737,11 +737,11 @@ export function AdaptiveProvider({
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {
-          console.log(`[AURA] RL profile registered for ${effectiveUserId}`, data);
+          //console.log(`[AURA] RL profile registered for ${effectiveUserId}`, data);
         }
       })
       .catch((err) => {
-        console.warn("[AURA] Failed to register RL profile:", err);
+        //console.warn("[AURA] Failed to register RL profile:", err);
         // Reset so it retries on next render
         rlRegisteredRef.current = null;
       });

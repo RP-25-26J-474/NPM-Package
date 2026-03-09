@@ -111,7 +111,7 @@ export function AdaptiveFeedbackPrompt({
         });
       }
     } catch (err) {
-      console.error('[AURA] Failed to submit feedback:', err);
+      //console.error('[AURA] Failed to submit feedback:', err);
     }
   };
 

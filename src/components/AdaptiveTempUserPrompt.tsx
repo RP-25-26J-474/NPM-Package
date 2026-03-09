@@ -51,13 +51,13 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.isTempUser) {
-            console.warn('[AdaptiveTempUserPrompt] Temp user detected:', result.reason);
+            //console.warn('[AdaptiveTempUserPrompt] Temp user detected:', result.reason);
             setDetectionReason(result.reason || 'unusual_activity');
             setShowModal(true);
           }
         }
       } catch (error) {
-        console.error('[AdaptiveTempUserPrompt] Error checking status:', error);
+        //console.error('[AdaptiveTempUserPrompt] Error checking status:', error);
       }
     };
 
@@ -65,7 +65,7 @@ export function AdaptiveTempUserPrompt(props: AdaptiveTempUserPromptProps) {
     checkTimerRef.current = window.setInterval(checkTempStatus, checkInterval);
 
     const handleDebugTrigger = () => {
-      console.log('⚡ Debug trigger: forcing temp-user popup');
+      //console.log('⚡ Debug trigger: forcing temp-user popup');
       setDetectionReason('debug_trigger');
       setShowModal(true);
     };

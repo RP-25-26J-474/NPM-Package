@@ -101,7 +101,7 @@ export function MLFeedbackPrompt({
         }),
       });
     } catch (error) {
-      console.error('[AURA] Error sending feedback:', error);
+      //console.error('[AURA] Error sending feedback:', error);
     } finally {
       if (onFeedback) {
         onFeedback(feedback);

@@ -55,7 +55,7 @@ export function useSettingsSync({
     }
 
     if (eventSourceRef.current) {
-      console.log('[AURA SSE] Disconnecting');
+      //console.log('[AURA SSE] Disconnecting');
       eventSourceRef.current.close();
       eventSourceRef.current = null;
       setIsConnected(false);
@@ -77,13 +77,13 @@ export function useSettingsSync({
       // apiEndpoint already contains /api (e.g. http://localhost:5000/api)
       // Server mounts SSE at /api/settings/events/:userId
       const url = `${apiEndpoint}/settings/events/${userId}`;
-      console.log('[AURA SSE] Connecting to:', url);
+      //console.log('[AURA SSE] Connecting to:', url);
 
       const eventSource = new EventSource(url);
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
-        console.log('[AURA SSE] Connection opened');
+        //console.log('[AURA SSE] Connection opened');
         setIsConnected(true);
         reconnectAttempts.current = 0;
         onConnectRef.current?.();
@@ -92,22 +92,22 @@ export function useSettingsSync({
       eventSource.onmessage = (event) => {
         try {
           const data: SettingsUpdateEvent = JSON.parse(event.data);
-          console.log('[AURA SSE] Received event:', data);
+          //console.log('[AURA SSE] Received event:', data);
 
           if (data.type === 'connected') {
-            console.log('[AURA SSE] Connected for user:', data.userId);
+            //console.log('[AURA SSE] Connected for user:', data.userId);
           } else if (data.type === 'settings_update' && data.settings) {
-            console.log('[AURA SSE] Settings updated from:', data.source);
+            //console.log('[AURA SSE] Settings updated from:', data.source);
             setLastUpdate(new Date(data.timestamp || Date.now()));
             onSettingsUpdateRef.current?.(data.settings, data.source || 'unknown');
           }
         } catch (error) {
-          console.error('[AURA SSE] Error parsing message:', error);
+          //console.error('[AURA SSE] Error parsing message:', error);
         }
       };
 
       eventSource.onerror = (error) => {
-        console.error('[AURA SSE] Connection error:', error);
+        //console.error('[AURA SSE] Connection error:', error);
         setIsConnected(false);
         eventSource.close();
 
@@ -115,7 +115,7 @@ export function useSettingsSync({
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
         reconnectAttempts.current++;
 
-        console.log(`[AURA SSE] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
+        //console.log(`[AURA SSE] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
         
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
@@ -124,7 +124,7 @@ export function useSettingsSync({
         onErrorRef.current?.(new Error('SSE connection error'));
       };
     } catch (error) {
-      console.error('[AURA SSE] Failed to create EventSource:', error);
+      //console.error('[AURA SSE] Failed to create EventSource:', error);
       onErrorRef.current?.(error as Error);
     }
   }, [enabled, userId, apiEndpoint]);

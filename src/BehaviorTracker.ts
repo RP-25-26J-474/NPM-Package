@@ -141,7 +141,7 @@ export class BehaviorTracker {
 
   private log(message: string, data?: any) {
     if (this.config.debugMode) {
-      console.log(`[BehaviorTracker] ${message}`, data || '');
+      //console.log(`[BehaviorTracker] ${message}`, data || '');
     }
   }
 
@@ -642,7 +642,7 @@ export class BehaviorTracker {
         this.log('Metrics sent successfully');
       }
     } catch (error) {
-      console.error('[BehaviorTracker] Failed to send metrics:', error);
+      //console.error('[BehaviorTracker] Failed to send metrics:', error);
     }
   }
 

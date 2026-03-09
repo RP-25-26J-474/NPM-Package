@@ -52,15 +52,15 @@ export function AdaptiveDifficultyDetector(props: AdaptiveDifficultyDetectorProp
       const m = metricsRef.current;
       const duration = Date.now() - lastCheckRef.current;
       
-      console.log('%c📊 Behavior Metrics', 'color: #2196F3; font-weight: bold', {
-        clicks: m.clickCount,
-        rageClicks: m.rageClickCount,
-        misclicks: m.misclickCount,
-        errors: m.errorCount,
-        avgClickTime: m.avgTimeToClick ? `${Math.round(m.avgTimeToClick)}ms` : 'N/A',
-        duration: `${Math.round(duration / 1000)}s`,
-        misclickRate: m.clickCount > 0 ? `${Math.round((m.misclickCount / m.clickCount) * 100)}%` : 'N/A'
-      });
+      // console.log('%c📊 Behavior Metrics', 'color: #2196F3; font-weight: bold', {
+      //   clicks: m.clickCount,
+      //   rageClicks: m.rageClickCount,
+      //   misclicks: m.misclickCount,
+      //   errors: m.errorCount,
+      //   avgClickTime: m.avgTimeToClick ? `${Math.round(m.avgTimeToClick)}ms` : 'N/A',
+      //   duration: `${Math.round(duration / 1000)}s`,
+      //   misclickRate: m.clickCount > 0 ? `${Math.round((m.misclickCount / m.clickCount) * 100)}%` : 'N/A'
+      // });
     };
 
     logTimerRef.current = window.setInterval(logMetrics, 5000);
@@ -90,11 +90,11 @@ export function AdaptiveDifficultyDetector(props: AdaptiveDifficultyDetectorProp
 
       if (recent.length >= 3) {
         m.rageClickCount++;
-        console.warn('%c🔴 RAGE CLICK', 'color: #ff6b6b; font-weight: bold', {
-          count: recent.length,
-          position: { x, y },
-          total: m.rageClickCount
-        });
+        // console.warn('%c🔴 RAGE CLICK', 'color: #ff6b6b; font-weight: bold', {
+        //   count: recent.length,
+        //   position: { x, y },
+        //   total: m.rageClickCount
+        // });
       }
 
       // Click timing
@@ -115,23 +115,23 @@ export function AdaptiveDifficultyDetector(props: AdaptiveDifficultyDetectorProp
         if (m.lastClickTime && m.lastClickTime.time === now) {
           m.misclickCount++;
           const rate = m.clickCount > 0 ? (m.misclickCount / m.clickCount) * 100 : 0;
-          console.warn('%c❌ MISCLICK', 'color: #ff9800; font-weight: bold', {
-            position: { x, y },
-            total: m.misclickCount,
-            rate: `${Math.round(rate)}%`
-          });
+          // console.warn('%c❌ MISCLICK', 'color: #ff9800; font-weight: bold', {
+          //   position: { x, y },
+          //   total: m.misclickCount,
+          //   rate: `${Math.round(rate)}%`
+          // });
         }
       }, 500);
     };
 
     const handleError = (event: ErrorEvent) => {
       metricsRef.current.errorCount++;
-      console.error('%c⚠️ ERROR', 'color: #f44336; font-weight: bold', {
-        message: event.message,
-        file: event.filename,
-        line: event.lineno,
-        total: metricsRef.current.errorCount
-      });
+      // console.error('%c⚠️ ERROR', 'color: #f44336; font-weight: bold', {
+      //   message: event.message,
+      //   file: event.filename,
+      //   line: event.lineno,
+      //   total: metricsRef.current.errorCount
+      // });
     };
 
     window.addEventListener('click', handleClick);
@@ -186,12 +186,12 @@ export function AdaptiveDifficultyDetector(props: AdaptiveDifficultyDetectorProp
       }
 
       if (issue) {
-        console.error('%c🚨 DIFFICULTY DETECTED', 'color: #f44336; font-weight: bold; font-size: 16px', {
-          type: issue.type,
-          severity: issue.severity,
-          description: issue.description,
-          metrics: issue.metrics
-        });
+        // console.error('%c🚨 DIFFICULTY DETECTED', 'color: #f44336; font-weight: bold; font-size: 16px', {
+        //   type: issue.type,
+        //   severity: issue.severity,
+        //   description: issue.description,
+        //   metrics: issue.metrics
+        // });
         
         setCurrentIssue(issue);
         setShowFeedback(true);
@@ -224,11 +224,11 @@ export function AdaptiveDifficultyDetector(props: AdaptiveDifficultyDetectorProp
     setShowFeedback(false);
 
     try {
-      console.log('%c📤 FEEDBACK SUBMITTED', 'color: #4caf50; font-weight: bold', {
-        response: feedback,
-        issue: currentIssue.type,
-        action: feedback === 'bad' ? 'Optimizing...' : 'Recording...'
-      });
+      // console.log('%c📤 FEEDBACK SUBMITTED', 'color: #4caf50; font-weight: bold', {
+      //   response: feedback,
+      //   issue: currentIssue.type,
+      //   action: feedback === 'bad' ? 'Optimizing...' : 'Recording...'
+      // });
 
       const response = await fetch(`${apiEndpoint}/behavior-rl/analyze-and-optimize`, {
         method: 'POST',
@@ -243,14 +243,14 @@ export function AdaptiveDifficultyDetector(props: AdaptiveDifficultyDetectorProp
 
       if (response.ok) {
         const data = await response.json();
-        console.log('%c✅ RL OPTIMIZATION COMPLETE', 'color: #4caf50; font-weight: bold; font-size: 16px', {
-          applied: data.appliedSettings,
-          suggestions: data.optimizationSuggestions,
-          message: data.message
-        });
+        // console.log('%c✅ RL OPTIMIZATION COMPLETE', 'color: #4caf50; font-weight: bold; font-size: 16px', {
+        //   applied: data.appliedSettings,
+        //   suggestions: data.optimizationSuggestions,
+        //   message: data.message
+        // });
       }
     } catch (error) {
-      console.error('Feedback error:', error);
+      //console.error('Feedback error:', error);
     } finally {
       setIsAnalyzing(false);
       setCurrentIssue(null);
