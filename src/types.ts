@@ -70,6 +70,83 @@ export interface AuraMlEnvelopeV2 {
   traces?: any[];
 }
 
+export interface AuraInspectorDiffEntry {
+  path: string;
+  extensionValue: unknown;
+  appliedValue: unknown;
+}
+
+export interface AuraExtensionStatusSnapshot {
+  extensionPresent?: boolean;
+  loggedIn?: boolean;
+  userId?: string | null;
+  token?: string | null;
+  user?: {
+    email?: string | null;
+    name?: string | null;
+  } | null;
+  error?: string;
+}
+
+export interface AuraExtensionStoredProfileSnapshot {
+  profile?: unknown;
+  available?: boolean;
+  error?: string;
+}
+
+export interface AuraExtensionFinalProfileSnapshot
+  extends AuraExtensionStoredProfileSnapshot {
+  sourceType?: string | null;
+}
+
+export interface AuraInspectorExtensionState {
+  status: AuraExtensionStatusSnapshot;
+  personalized: AuraExtensionStoredProfileSnapshot | null;
+  adaptive: AuraExtensionStoredProfileSnapshot | null;
+  final: AuraExtensionFinalProfileSnapshot | null;
+  normalizedFinalEnvelope: AuraMlEnvelopeV2 | null;
+}
+
+export interface AuraInspectorRuntimeState {
+  requestedUserId?: string;
+  resolvedUserId?: string;
+  source: AuraSource;
+  loading: boolean;
+  error?: string;
+  isExtensionInstalled: boolean;
+  isExtensionLoggedIn?: boolean;
+  simulateExtensionInstalled: boolean;
+  appliedProfile: AuraProfileV2 | null;
+  appliedAt?: string | null;
+  fallbackCreatedProfile: AuraProfileV2 | null;
+  fallbackReason?: string | null;
+}
+
+export interface AuraInspectorSnapshot {
+  user: {
+    requestedUserId?: string;
+    resolvedUserId?: string;
+    source: AuraSource;
+    loading: boolean;
+    error?: string;
+  };
+  extension: AuraInspectorExtensionState;
+  runtime: AuraInspectorRuntimeState;
+  comparison: {
+    finalVsApplied: AuraInspectorDiffEntry[];
+    hasDifference: boolean;
+  };
+  fallback: {
+    active: boolean;
+    reason?: string | null;
+    createdProfile: AuraProfileV2 | null;
+    appliedProfile: AuraProfileV2 | null;
+  };
+  notes: {
+    limitation: string;
+  };
+}
+
 // ---- Derived tokens for UI components ----
 
 export interface AuraColorTokens {

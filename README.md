@@ -22,11 +22,13 @@ import {
   AdaptiveProvider,
   AdaptiveButton,
   AdaptiveText,
+  AdaptiveProfileInspector,
 } from "@aura-adaptive/aura-ui-adaptor";
 
 export function App() {
   return (
     <AdaptiveProvider simulateExtensionInstalled={false}>
+      <AdaptiveProfileInspector />
       <main>
         <AdaptiveText variant="h1">Welcome to AURA</AdaptiveText>
         <AdaptiveButton variant="primary">Continue</AdaptiveButton>
@@ -44,6 +46,19 @@ export function App() {
 2. If no extension profile is available, the provider falls back to the bundled prediction model and cached fallback data.
 
 When the extension is unavailable, the provider can also render a configurable installation prompt.
+
+## Optional Profile Inspector
+
+Render `<AdaptiveProfileInspector />` anywhere inside `AdaptiveProvider` to add a draggable floating AURA button. Clicking it opens a read-only inspector panel that shows:
+
+- user/runtime state
+- extension availability and login status
+- extension storage profiles for personalized, adaptive, and final selection
+- the live profile currently applied by `AdaptiveProvider`
+- differences between the final extension profile and the applied runtime profile
+- fallback/runtime details when the extension path is unavailable
+
+This inspector is a separate module. `AdaptiveProvider` does not mount it automatically and its existing behavior is unchanged when the inspector is not rendered.
 
 ## Exported Components
 
@@ -65,6 +80,7 @@ The package exports:
 - `AdaptiveMenu`
 - `AdaptiveNavbar`
 - `AdaptivePagination`
+- `AdaptiveProfileInspector`
 - `AdaptiveSelect`
 - `AdaptiveSwitch`
 - `AdaptiveTable`
@@ -83,5 +99,3 @@ The published package includes only the built `dist/` output, this README, and t
 ## License
 
 MIT
-
-
