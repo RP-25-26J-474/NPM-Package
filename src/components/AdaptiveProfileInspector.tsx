@@ -7,6 +7,7 @@ import { buildAuraInspectorSnapshot } from "../profileInspector";
 import type {
   AuraInspectorExtensionState,
   AuraInspectorRuntimeState,
+  AuraProfileV2,
 } from "../types";
 
 type AdaptiveProfileInspectorProps = {
@@ -66,14 +67,6 @@ function createEmptyExtensionState(
     final: null,
     normalizedFinalEnvelope: null,
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function formatLabel(label: string): string {
-  return label.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function formatPrimitive(value: unknown): string {
@@ -176,90 +169,102 @@ function ValueBox({ value }: { value: unknown }) {
   );
 }
 
-function DataTree({
-  data,
-  depth = 0,
+function SummaryRow({
+  label,
+  value,
 }: {
-  data: unknown;
-  depth?: number;
+  label: string;
+  value: React.ReactNode;
 }) {
-  if (!isRecord(data) && !Array.isArray(data)) {
-    return <ValueBox value={data} />;
-  }
-
-  if (Array.isArray(data)) {
-    if (data.length === 0) {
-      return <ValueBox value={"No items"} />;
-    }
-
-    return (
-      <div style={{ display: "grid", gap: 10 }}>
-        {data.map((item, index) => (
-          <div
-            key={index}
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              background: "#f8fafc",
-              border: "1px solid #dbe4ea",
-            }}
-          >
-            <div
-              style={{
-                marginBottom: 8,
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#0f766e",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              Item {index + 1}
-            </div>
-            <DataTree data={item} depth={depth + 1} />
-          </div>
-        ))}
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 140px) minmax(0, 1fr)",
+        gap: 10,
+        alignItems: "center",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 800,
+          color: "#334155",
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+        }}
+      >
+        {label}
       </div>
-    );
-  }
+      <div>{value}</div>
+    </div>
+  );
+}
 
-  const entries = Object.entries(data);
-  if (entries.length === 0) {
-    return <ValueBox value={"Empty object"} />;
+function SummaryList({
+  rows,
+}: {
+  rows: Array<{ label: string; value: React.ReactNode }>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 10 }}>
+      {rows.map((row) => (
+        <SummaryRow key={row.label} label={row.label} value={row.value} />
+      ))}
+    </div>
+  );
+}
+
+function ProfileSummary({
+  profile,
+}: {
+  profile: AuraProfileV2 | null;
+}) {
+  if (!profile) {
+    return <ValueBox value={"Not available"} />;
   }
 
   return (
-    <div style={{ display: "grid", gap: 10 }}>
-      {entries.map(([key, value]) => {
-        const primitive = !isRecord(value) && !Array.isArray(value);
-
-        return (
-          <div
-            key={key}
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              background: depth === 0 ? "#ffffff" : "#f8fafc",
-              border: "1px solid #dbe4ea",
-            }}
-          >
-            <div
-              style={{
-                marginBottom: primitive ? 8 : 10,
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#0f172a",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {formatLabel(key)}
-            </div>
-            {primitive ? <ValueBox value={value} /> : <DataTree data={value} depth={depth + 1} />}
-          </div>
-        );
-      })}
-    </div>
+    <SummaryList
+      rows={[
+        {
+          label: "Theme",
+          value: <ValueBox value={profile.theme} />,
+        },
+        {
+          label: "Contrast",
+          value: <ValueBox value={profile.contrast_mode} />,
+        },
+        {
+          label: "Typography",
+          value: (
+            <ValueBox
+              value={`Font ${profile.font_size}px, line height ${profile.line_height}`}
+            />
+          ),
+        },
+        {
+          label: "Spacing",
+          value: (
+            <ValueBox
+              value={`Gap ${profile.element_spacing_x}px × ${profile.element_spacing_y}px, padding ${profile.element_padding_x}px × ${profile.element_padding_y}px`}
+            />
+          ),
+        },
+        {
+          label: "Controls",
+          value: <ValueBox value={`Target size ${profile.target_size}px`} />,
+        },
+        {
+          label: "Flags",
+          value: (
+            <ValueBox
+              value={`Reduced motion: ${profile.reduced_motion ? "on" : "off"}, tooltip assist: ${profile.tooltip_assist ? "on" : "off"}, simplified layout: ${profile.layout_simplification ? "on" : "off"}`}
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -466,6 +471,7 @@ export function AdaptiveProfileInspector({
   }, [isOpen, adaptive.userId]);
 
   const snapshot = buildAuraInspectorSnapshot(extensionState, runtime);
+  const finalProfile = snapshot.extension.normalizedFinalEnvelope?.profile.profile ?? null;
 
   const panelWidth = Math.min(PANEL_WIDTH, viewport.width - EDGE_GAP * 2);
   const preferredLeft = buttonPosition.x + BUTTON_SIZE - panelWidth;
@@ -550,10 +556,7 @@ export function AdaptiveProfileInspector({
                   label={snapshot.user.source === "fallback" ? "Fallback mode" : "Runtime active"}
                   tone={snapshot.user.source === "fallback" ? "warn" : "neutral"}
                 />
-                <StatusChip
-                  label={isRefreshing ? "Refreshing" : "Read only"}
-                  tone={isRefreshing ? "warn" : "neutral"}
-                />
+                {isRefreshing ? <StatusChip label="Refreshing" tone="warn" /> : null}
               </div>
             </div>
             <button
@@ -578,15 +581,17 @@ export function AdaptiveProfileInspector({
 
           <div style={{ display: "grid", gap: 12, padding: 16 }}>
             <Section
-              id="user"
-              title="User Data"
-              expanded={!!expandedSections.user}
+              id="status"
+              title="Runtime Status"
+              expanded={expandedSections.status !== false}
               onToggle={toggleSection}
               summary={
                 <>
                   <StatusChip
-                    label={snapshot.user.resolvedUserId || "guest"}
-                    tone="neutral"
+                    label={
+                      snapshot.comparison.hasDifference ? "Does not match" : "Matches"
+                    }
+                    tone={snapshot.comparison.hasDifference ? "warn" : "good"}
                   />
                   <StatusChip
                     label={`Source: ${snapshot.user.source}`}
@@ -595,226 +600,128 @@ export function AdaptiveProfileInspector({
                 </>
               }
             >
-              <DataTree
-                data={{
-                  resolved_user_id: snapshot.user.resolvedUserId || null,
-                  runtime_source: snapshot.user.source,
-                  loading: snapshot.user.loading,
-                  error: snapshot.user.error || null,
-                }}
+              <SummaryList
+                rows={[
+                  {
+                    label: "Extension",
+                    value: (
+                      <StatusChip
+                        label={
+                          snapshot.extension.status.extensionPresent
+                            ? "Installed"
+                            : "Not installed"
+                        }
+                        tone={
+                          snapshot.extension.status.extensionPresent ? "good" : "warn"
+                        }
+                      />
+                    ),
+                  },
+                  {
+                    label: "Login",
+                    value: (
+                      <StatusChip
+                        label={
+                          snapshot.extension.status.loggedIn
+                            ? "Logged in"
+                            : "Not logged in"
+                        }
+                        tone={snapshot.extension.status.loggedIn ? "good" : "warn"}
+                      />
+                    ),
+                  },
+                  {
+                    label: "Active Source",
+                    value: <ValueBox value={snapshot.user.source} />,
+                  },
+                  {
+                    label: "Profile Diff",
+                    value: (
+                      <StatusChip
+                        label={
+                          snapshot.comparison.hasDifference
+                            ? "Does not match"
+                            : "Matches"
+                        }
+                        tone={snapshot.comparison.hasDifference ? "warn" : "good"}
+                      />
+                    ),
+                  },
+                ]}
               />
             </Section>
 
             <Section
-              id="extension"
-              title="Extension Status"
-              expanded={!!expandedSections.extension}
+              id="final"
+              title="Final Selected Profile"
+              expanded={expandedSections.final !== false}
               onToggle={toggleSection}
               summary={
-                <>
-                  <StatusChip
-                    label={
-                      snapshot.extension.status.extensionPresent ? "Installed" : "Missing"
-                    }
-                    tone={
-                      snapshot.extension.status.extensionPresent ? "good" : "warn"
-                    }
-                  />
-                  <StatusChip
-                    label={
-                      snapshot.extension.status.loggedIn ? "Logged in" : "Not logged in"
-                    }
-                    tone={
-                      snapshot.extension.status.loggedIn ? "good" : "warn"
-                    }
-                  />
-                </>
+                <StatusChip
+                  label={finalProfile ? "Available" : "Not available"}
+                  tone={finalProfile ? "good" : "warn"}
+                />
               }
             >
-              <DataTree
-                data={{
-                  extension_available:
-                    snapshot.extension.status.extensionPresent === true,
-                  extension_logged_in: snapshot.extension.status.loggedIn === true,
-                  extension_user_id: snapshot.extension.status.userId || null,
-                  extension_user: snapshot.extension.status.user || null,
-                  bridge_error: snapshot.extension.status.error || null,
-                }}
-              />
-            </Section>
-
-            <Section
-              id="storage"
-              title="Extension Storage Profiles"
-              expanded={!!expandedSections.storage}
-              onToggle={toggleSection}
-              summary={
-                <>
-                  <StatusChip
-                    label={
-                      snapshot.extension.personalized?.available
-                        ? "Personalized ready"
-                        : "Personalized empty"
-                    }
-                    tone={
-                      snapshot.extension.personalized?.available ? "good" : "warn"
-                    }
-                  />
-                  <StatusChip
-                    label={
-                      snapshot.extension.adaptive?.available
-                        ? "Adaptive ready"
-                        : "Adaptive empty"
-                    }
-                    tone={snapshot.extension.adaptive?.available ? "good" : "warn"}
-                  />
-                  <StatusChip
-                    label={
-                      snapshot.extension.final?.available
-                        ? "Final selected"
-                        : "Final unavailable"
-                    }
-                    tone={snapshot.extension.final?.available ? "good" : "warn"}
-                  />
-                </>
-              }
-            >
-              <DataTree
-                data={{
-                  personalized_ml_profile: snapshot.extension.personalized || null,
-                  adaptive_optimized_profile: snapshot.extension.adaptive || null,
-                  final_selected_profile: snapshot.extension.final || null,
-                  final_profile_normalized_for_package:
-                    snapshot.extension.normalizedFinalEnvelope || null,
-                }}
-              />
+              <ProfileSummary profile={finalProfile} />
             </Section>
 
             <Section
               id="applied"
               title="AdaptiveProvider Applied Profile"
-              expanded={!!expandedSections.applied}
+              expanded={expandedSections.applied !== false}
               onToggle={toggleSection}
               summary={
-                <>
-                  <StatusChip
-                    label={snapshot.runtime.appliedProfile ? "Applied" : "Not applied"}
-                    tone={snapshot.runtime.appliedProfile ? "good" : "warn"}
-                  />
-                  <StatusChip
-                    label={snapshot.runtime.source}
-                    tone={snapshot.runtime.source === "fallback" ? "warn" : "neutral"}
-                  />
-                </>
+                <StatusChip
+                  label={snapshot.runtime.appliedProfile ? "Applied" : "Not applied"}
+                  tone={snapshot.runtime.appliedProfile ? "good" : "warn"}
+                />
               }
             >
-              <DataTree
-                data={{
-                  applied_profile: snapshot.runtime.appliedProfile,
-                  runtime: {
-                    source: snapshot.runtime.source,
-                    loading: snapshot.runtime.loading,
-                    is_extension_installed: snapshot.runtime.isExtensionInstalled,
-                    is_extension_logged_in: snapshot.runtime.isExtensionLoggedIn,
-                  },
-                }}
-              />
+              <ProfileSummary profile={snapshot.runtime.appliedProfile} />
             </Section>
 
             <Section
-              id="differences"
-              title="Final Profile vs Applied Profile"
-              expanded={!!expandedSections.differences}
+              id="diff"
+              title="Diff Status"
+              expanded={expandedSections.diff !== false}
               onToggle={toggleSection}
               summary={
-                snapshot.comparison.hasDifference ? (
-                  <StatusChip
-                    label={`${snapshot.comparison.finalVsApplied.length} differences`}
-                    tone="warn"
-                  />
-                ) : (
-                  <StatusChip label="No differences" tone="good" />
-                )
+                <StatusChip
+                  label={snapshot.comparison.hasDifference ? "Does not match" : "Matches"}
+                  tone={snapshot.comparison.hasDifference ? "warn" : "good"}
+                />
               }
             >
-              {snapshot.comparison.finalVsApplied.length > 0 ? (
-                <div style={{ display: "grid", gap: 10 }}>
-                  {snapshot.comparison.finalVsApplied.map((diff) => (
-                    <div
-                      key={diff.path}
-                      style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        border: "1px solid #fecaca",
-                        background: "#fef2f2",
-                        display: "grid",
-                        gap: 10,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 800,
-                          color: "#991b1b",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                        }}
-                      >
-                        {diff.path}
-                      </div>
-                      <DataTree
-                        data={{
-                          extension_value: diff.extensionValue,
-                          applied_value: diff.appliedValue,
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <ValueBox value={"AdaptiveProvider matches the selected final profile."} />
-              )}
+              <ValueBox
+                value={
+                  snapshot.comparison.hasDifference
+                    ? "Applied profile does not match the final selected profile."
+                    : "Applied profile matches the final selected profile."
+                }
+              />
             </Section>
 
             {snapshot.fallback.active ? (
               <Section
                 id="fallback"
                 title="Fallback Mode"
-                expanded={!!expandedSections.fallback}
+                expanded={expandedSections.fallback !== false}
                 onToggle={toggleSection}
                 summary={
-                  <>
-                    <StatusChip label="Fallback active" tone="warn" />
-                    <StatusChip
-                      label={
-                        snapshot.runtime.isExtensionInstalled
-                          ? "Extension did not supply a final profile"
-                          : "Extension unavailable"
-                      }
-                      tone="warn"
-                    />
-                  </>
+                  <StatusChip label="Fallback active" tone="warn" />
                 }
               >
-                <DataTree
-                  data={{
-                    reason: snapshot.fallback.reason || null,
-                    created_fallback_profile: snapshot.fallback.createdProfile,
-                    applied_profile_in_fallback_mode: snapshot.fallback.appliedProfile,
-                  }}
+                <SummaryList
+                  rows={[
+                    {
+                      label: "Reason",
+                      value: <ValueBox value={snapshot.fallback.reason || null} />,
+                    },
+                  ]}
                 />
               </Section>
             ) : null}
-
-            <Section
-              id="notes"
-              title="Inspector Notes"
-              expanded={!!expandedSections.notes}
-              onToggle={toggleSection}
-              summary={<StatusChip label="Standalone module" tone="neutral" />}
-            >
-              <ValueBox value={snapshot.notes.limitation} />
-            </Section>
           </div>
         </div>
       ) : null}
