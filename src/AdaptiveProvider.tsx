@@ -696,8 +696,22 @@ export function AdaptiveProvider({
         handleProfileDiff
       );
     } catch (err) {
-      console.error("[AURA] Extension path failed", err);
-      setError("Failed to load personalization from extension");
+      const message = err instanceof Error ? err.message : String(err);
+    
+      const isExpectedExtensionMiss =
+        message === "Extension response timeout" ||
+        message === "No window";
+    
+      // Missing extension 
+      if (debugMode) {
+        if (isExpectedExtensionMiss) {
+          console.info("[AURA] Extension not available. Using fallback profile.");
+        } else {
+          console.error("[AURA] Unexpected extension bridge failure", err);
+        }
+      }
+      setError(undefined);
+      setIsExtensionInstalled(false);
       setIsExtensionLoggedIn(false);
       await loadFallback(setUserId, setSource, setProfile, setTokens);
       // Restore the host app userId so feedback stays unlocked on refresh
