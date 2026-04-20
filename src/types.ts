@@ -132,6 +132,9 @@ export interface AuraTokens {
   flags: AuraFlagTokens;
 }
 
+export type AuraCssVariableName = `--aura-${string}`;
+export type AuraCssVariables = Record<AuraCssVariableName, string>;
+
 // ---- Context & component props ----
 
 export type AuraSource = "category" | "user" | "fallback";
@@ -197,6 +200,12 @@ export interface AdaptiveProviderProps {
    * Enable debug logging for behavior tracker.
    */
   debugMode?: boolean;
+  /**
+   * Inject AURA's token-driven a-* utility classes.
+   * Enabled by default so apps can use className="a-card a-readable" after
+   * wrapping with AdaptiveProvider.
+   */
+  enableUtilityClasses?: boolean;
   /**
    * RL service endpoint for reinforcement learning feedback.
    * Example: 'http://localhost:8000'

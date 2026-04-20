@@ -34,6 +34,8 @@ import { useSettingsSync } from "./hooks/useSettingsSync";
 import { useUserSettingsStore } from "./hooks/useUserSettingsStore";
 import { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
 import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components/ComponentFeedbackModal";
+import { applyAdaptiveCssVariables } from "./adaptiveCssVariables";
+import { ensureAuraUtilityStyles } from "./auraUtilityStyles";
 
 const initialProfile: AuraProfileV2 = DEFAULT_GUEST_PROFILE;
 const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
@@ -161,6 +163,7 @@ export function AdaptiveProvider({
   apiEndpoint = process.env.AURA_API_ENDPOINT,
   enableBehaviorTracking = true,
   debugMode = false,
+  enableUtilityClasses = true,
   showExtensionPrompt = true,
   extensionPromptMessage = DEFAULT_EXTENSION_PROMPT_MESSAGE,
   extensionPromptCtaLabel = DEFAULT_EXTENSION_PROMPT_CTA,
@@ -198,6 +201,14 @@ export function AdaptiveProvider({
   // Used to persist settings to localStorage from within handleSettingsUpdate
   // (storeUpdateSettings is set after useUserSettingsStore is called below)
   const storeUpdateRef = useRef<((patch: any, src?: string) => void) | null>(null);
+
+  useEffect(() => {
+    if (enableUtilityClasses) ensureAuraUtilityStyles();
+  }, [enableUtilityClasses]);
+
+  useEffect(() => {
+    applyAdaptiveCssVariables(tokens);
+  }, [tokens]);
 
   useEffect(() => {
     if (enableBehaviorTracking) {
