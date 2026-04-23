@@ -5,6 +5,7 @@ import type {
   AuraTokens,
   AuraThemeMode,
 } from "./types";
+import { resolveAuraRlEndpoint } from "./endpoints";
 
 // -------------------------------
 // Minimal MOCK (dev-only fallback)
@@ -245,7 +246,7 @@ export const mockFetchAuraEnvelope = async (
 
   // For non-demo users, try the live backend first
   try {
-    const backendUrl = rlEndpointOverride || process.env.AURA_RL_URL || "https://rl-service.fly.dev";
+    const backendUrl = resolveAuraRlEndpoint(rlEndpointOverride);
     const response = await fetch(`${backendUrl}/users/${userId}/profile`);
     if (response.ok) {
       const data = await response.json();

@@ -1,5 +1,11 @@
 // src/index.tsx
 export { AdaptiveProvider, useAdaptive } from "./AdaptiveProvider";
+export {
+  DEFAULT_AURA_API_ENDPOINT,
+  DEFAULT_AURA_RL_ENDPOINT,
+  resolveAuraApiEndpoint,
+  resolveAuraRlEndpoint,
+} from "./endpoints";
 export { predictFallbackTokens } from "./fallback-ml/predict";
 export { AdaptiveButton } from "./components/AdaptiveButton";
 export { AdaptiveText } from "./components/AdaptiveText";
