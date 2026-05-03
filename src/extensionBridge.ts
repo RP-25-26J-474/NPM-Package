@@ -123,6 +123,10 @@ function normalizeProfileShape(input: unknown): AuraProfileV2 | null {
       typeof input.layout_simplification === "boolean"
         ? input.layout_simplification
         : DEFAULT_GUEST_PROFILE.layout_simplification,
+    color_blindness: toFiniteNumber(
+      input.color_blindness,
+      DEFAULT_GUEST_PROFILE.color_blindness ?? 0
+    ),
   };
 }
 

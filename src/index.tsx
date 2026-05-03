@@ -26,6 +26,7 @@ export { AdaptiveDrawer } from "./components/AdaptiveDrawer";
 export { AdaptiveCheckbox } from "./components/AdaptiveCheckbox";
 export { AdaptiveSwitch } from "./components/AdaptiveSwitch";
 export { AdaptiveDialog } from "./components/AdaptiveDialog";
+export { AdaptiveImageFilter } from "./components/AdaptiveImageFilter";
 
 export { BehaviorTracker } from "./BehaviorTracker";
 export { useRealtimeUIUpdates } from "./hooks/useRealtimeUIUpdates";

@@ -60,6 +60,7 @@ The package exports:
 - `AdaptiveDrawer`
 - `AdaptiveDropdown`
 - `AdaptiveGrid`
+- `AdaptiveImageFilter`
 - `AdaptiveInput`
 - `AdaptiveList`
 - `AdaptiveMenu`
