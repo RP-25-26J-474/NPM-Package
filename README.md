@@ -5,15 +5,16 @@
 
 **@aura-adaptive/aura-ui-adaptor** is a powerful React component library that intelligently adapts UI presentation in real-time based on ML-driven user profiles and JSON rules. It empowers developers to build highly accessible, personalized, and adaptive web applications with minimal effort.
 
-## ✨ Features
+## Features
 
-- 🧠 **ML-Driven Personalization:** Automatically adapts UI components using profiles from the AURA browser extension.
-- 🎨 **Extensive Component Library:** Offers a wide range of adaptive primitives (Buttons, Cards, Inputs, Tables, Dialogs, etc.).
-- 🛡️ **Accessibility First:** Ensures all adapted interfaces meet high accessibility standards out of the box.
-- 🔌 **Seamless Integration:** Easy-to-use `AdaptiveProvider` and hooks for effortless adoption in existing React applications.
-- 🪟 **Fallback Mechanism:** Built-in prediction models ensure a graceful fallback when the extension is not available.
+- **ML-Driven Personalization:** Automatically adapts UI components using profiles from the AURA browser extension.
+- **Extensive Component Library:** Offers a wide range of adaptive primitives (Buttons, Cards, Inputs, Tables, Dialogs, etc.).
+- **Accessibility First:** Applies adaptive design tokens for typography, spacing, contrast, motion, layout, and interaction comfort.
+- **Behavior-Aware Adaptation:** Uses lightweight runtime interaction signals such as click rate, scroll speed, and interaction timing to support adaptive UI refinement.
+- **Seamless Integration:** Easy-to-use `AdaptiveProvider` and hooks for effortless adoption in existing React applications.
+- **Fallback Mechanism:** Built-in prediction models ensure a graceful fallback when the extension is not available.
 
-## 📦 Installation
+## Installation
 
 Install the package via npm:
 
@@ -34,7 +35,7 @@ pnpm add @aura-adaptive/aura-ui-adaptor
 
 > **Note:** This package requires `react` and `react-dom` (v18 or v19) as peer dependencies.
 
-## 🚀 Quick Start
+## Quick Start
 
 Wrap your application's root with the `AdaptiveProvider` and start using the adaptive components.
 
@@ -64,15 +65,20 @@ export function App() {
 
 ```
 
-## 🛠️ Provider Behavior
+## Provider Behavior
 
 The `AdaptiveProvider` is the core of the adaptation engine. It intelligently manages how user profiles are loaded:
 
 1. **Extension Mode (Default):** Attempts to securely read the active profile from the AURA browser extension.
 2. **Fallback Mode:** If the extension is unavailable, it gracefully falls back to a bundled prediction model and locally cached fallback data.
-3. **Installation Prompt:** Can be configured to render an installation prompt for the AURA extension to enhance the user experience.
+3. **Behavior Signals:** Observes non-content interaction patterns such as click rate, scroll behavior, and interaction timing to support adaptive refinement.
+4. **Installation Prompt:** Can be configured to render an installation prompt for the AURA extension to enhance the user experience.
 
-## 📚 API Reference
+## Privacy-Conscious Runtime Signals
+
+`@aura-adaptive/aura-ui-adaptor` includes lightweight behavior-signal monitoring as part of its adaptive runtime, such as click patterns, scroll activity, interaction timing, viewport changes, and adaptation-related events. These signals are used to improve interface personalization and adaptation quality, not to capture private user content. The package is designed to avoid collecting passwords, form input values, or raw user-entered text. Developers should ensure that their application-level privacy notice accurately reflects the use of adaptive interaction signals where required.
+
+## API Reference
 
 ### Core Hooks & Providers
 - `AdaptiveProvider`: The root context provider for AURA adaptation.
@@ -89,7 +95,7 @@ The library exports a comprehensive suite of adaptive components, designed to au
 | `AdaptiveTable`     | `AdaptiveTextarea`| `AdaptiveNavbar`   |            |
 | `AdaptiveDropdown`  | `AdaptiveButton`| `AdaptivePagination` |            |
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please feel free to submit a Pull Request or open an issue if you have suggestions or find bugs.
 
@@ -100,6 +106,6 @@ npm install
 npm run build
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
