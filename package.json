@@ -1,6 +1,6 @@
 {
   "name": "@aura-adaptive/aura-ui-adaptor",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "React library for ML-driven adaptive UI components based on JSON rules",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
