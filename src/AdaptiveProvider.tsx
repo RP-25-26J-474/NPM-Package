@@ -24,6 +24,7 @@ import type {
 } from "./types";
 
 import { deriveTokensFromProfile, mockFetchAuraEnvelope, DEFAULT_GUEST_PROFILE } from "./utils";
+import { DEFAULT_AURA_API_ENDPOINT, DEFAULT_AURA_RL_ENDPOINT } from "./endpoints";
 import { AdaptiveRevert } from './components/AdaptiveRevert';
 import { BehaviorTracker, BehaviorTrackerConfig } from "./BehaviorTracker";
 import { useTrialManager } from "./hooks/useTrialManager";
@@ -158,7 +159,7 @@ export function AdaptiveProvider({
   children,
   userId: initialUserId,
   simulateExtensionInstalled = false,
-  apiEndpoint = process.env.AURA_API_ENDPOINT,
+  apiEndpoint = DEFAULT_AURA_API_ENDPOINT,
   enableBehaviorTracking = true,
   debugMode = false,
   showExtensionPrompt = true,
@@ -173,7 +174,7 @@ export function AdaptiveProvider({
   extensionPromptDismissStyle,
   extensionPromptStorageKey = DEFAULT_EXTENSION_PROMPT_STORAGE_KEY,
   onExtensionPromptDismiss,
-  rlEndpoint = process.env.AURA_RL_ENDPOINT,
+  rlEndpoint = DEFAULT_AURA_RL_ENDPOINT,
   mode = "standard",
 }: AdaptiveProviderProps & { mode?: "standard" | "trial-based" }) {
   const [userId, setUserId] = useState<string | undefined>(initialUserId);
