@@ -35,17 +35,18 @@ import { useSettingsSync } from "./hooks/useSettingsSync";
 import { useUserSettingsStore } from "./hooks/useUserSettingsStore";
 import { MLFeedbackPrompt } from "./components/MLFeedbackPrompt";
 import { ComponentFeedbackModal, type ComponentFeedbackType } from "./components/ComponentFeedbackModal";
+import { ExtensionInstallPromptBanner } from "./components/ExtensionInstallPromptBanner";
 
 const initialProfile: AuraProfileV2 = DEFAULT_GUEST_PROFILE;
 const initialTokens: AuraTokens = deriveTokensFromProfile(initialProfile);
 
 const AdaptiveContext = createContext<AdaptiveContextValue | null>(null);
 
-type AnyStyle = Record<string, any>;
-
 const DEFAULT_EXTENSION_PROMPT_MESSAGE =
   "Install the AURA extension for a more personalized UI adaptation experience.";
 const DEFAULT_EXTENSION_PROMPT_CTA = "Get AURA Extension";
+const DEFAULT_EXTENSION_PROMPT_CTA_HREF =
+  "https://chromewebstore.google.com/detail/aura/likelgppeaoiocgebdepjbfmpnfncfan";
 const DEFAULT_EXTENSION_PROMPT_DISMISS_LABEL = "Not now";
 const DEFAULT_EXTENSION_PROMPT_STORAGE_KEY = "__aura_ext_prompt_seen_v1";
 
@@ -91,16 +92,6 @@ function pickRelevantDiff(
     if (idx >= 0) return idx;
   }
   return 0;
-}
-
-function mergeStyle(target: AnyStyle, incoming: any) {
-  if (!incoming) return;
-  const keys = Object.keys(incoming);
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i];
-    const v = incoming[k];
-    if (v !== undefined) target[k] = v;
-  }
 }
 
 function isLoggedInUserId(userId: string | undefined | null): boolean {
@@ -165,7 +156,7 @@ export function AdaptiveProvider({
   showExtensionPrompt = true,
   extensionPromptMessage = DEFAULT_EXTENSION_PROMPT_MESSAGE,
   extensionPromptCtaLabel = DEFAULT_EXTENSION_PROMPT_CTA,
-  extensionPromptCtaHref,
+  extensionPromptCtaHref = DEFAULT_EXTENSION_PROMPT_CTA_HREF,
   onExtensionPromptCtaClick,
   extensionPromptStyle,
   extensionPromptMessageStyle,
@@ -820,174 +811,32 @@ export function AdaptiveProvider({
     }
   }, [shouldShowExtensionPrompt, extensionPromptStorageKey]);
 
+  const handleExtensionPromptDismiss = useCallback(() => {
+    setIsExtensionPromptClosed(true);
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(extensionPromptStorageKey, "1");
+      } catch {
+        // ignore storage errors
+      }
+    }
+    if (onExtensionPromptDismiss) onExtensionPromptDismiss();
+  }, [extensionPromptStorageKey, onExtensionPromptDismiss]);
+
   const extensionPrompt = shouldShowExtensionPrompt
-    ? (() => {
-        const { colors, typography, spacing, controls, flags } = tokens;
-
-        const containerStyle: AnyStyle = {
-          position: "fixed",
-          top: Math.max(16, Math.round(spacing.gapY * 1.4)),
-          right: Math.max(16, Math.round(spacing.gapX * 1.4)),
-          width: "min(420px, calc(100vw - 32px))",
-          maxWidth: "calc(100vw - 32px)",
-          boxSizing: "border-box",
-          display: "grid",
-          gap: Math.max(10, spacing.gapX),
-          padding:
-            Math.max(14, spacing.padY).toString() +
-            "px " +
-            Math.max(16, spacing.padX).toString() +
-            "px",
-          borderRadius: 18,
-          borderWidth: flags.highContrast ? 2 : 1,
-          borderStyle: "solid",
-          borderColor: flags.highContrast ? colors.text : colors.primary,
-          backgroundColor: flags.highContrast ? colors.background : colors.surface,
-          color: colors.text,
-          boxShadow: flags.highContrast
-            ? "0 0 0 1px rgba(0, 0, 0, 0.12)"
-            : "0 20px 48px rgba(15, 23, 42, 0.22)",
-          backdropFilter: flags.highContrast ? undefined : "blur(14px)",
-          WebkitBackdropFilter: flags.highContrast ? undefined : "blur(14px)",
-          zIndex: 2147483000,
-        };
-        mergeStyle(containerStyle, extensionPromptStyle);
-
-        const messageStyle: AnyStyle = {
-          fontSize: typography.body,
-          lineHeight: typography.lineHeight,
-          fontWeight: 500,
-          maxWidth: "100%",
-        };
-        mergeStyle(messageStyle, extensionPromptMessageStyle);
-
-        const actionsStyle: AnyStyle = {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          flexWrap: "wrap",
-          gap: Math.max(8, Math.round(spacing.gapX * 0.8)),
-          width: "100%",
-        };
-
-        const ctaStyle: AnyStyle = {
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: Math.max(6, Math.round(spacing.gapX * 0.5)),
-          borderWidth: 1,
-          borderStyle: "solid",
-          borderColor: colors.primary,
-          backgroundColor: colors.primary,
-          color: colors.onPrimary,
-          borderRadius: 999,
-          padding:
-            Math.max(8, Math.round(spacing.padY * 0.6)).toString() +
-            "px " +
-            Math.max(12, Math.round(spacing.padX * 0.9)).toString() +
-            "px",
-          minHeight: Math.max(32, Math.round(controls.minTargetSize * 0.7)),
-          textDecoration: "none",
-          fontSize: typography.body,
-          lineHeight: typography.lineHeight,
-          cursor: "pointer",
-          fontWeight: 600,
-          boxShadow: flags.highContrast ? "none" : "0 10px 24px rgba(15, 23, 42, 0.18)",
-        };
-        mergeStyle(ctaStyle, extensionPromptCtaStyle);
-
-        const dismissStyle: AnyStyle = {
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderWidth: 1,
-          borderStyle: "solid",
-          borderColor: flags.highContrast ? colors.text : colors.border,
-          backgroundColor: "transparent",
-          color: colors.text,
-          borderRadius: 999,
-          padding:
-            Math.max(8, Math.round(spacing.padY * 0.6)).toString() +
-            "px " +
-            Math.max(12, Math.round(spacing.padX * 0.9)).toString() +
-            "px",
-          minHeight: Math.max(32, Math.round(controls.minTargetSize * 0.7)),
-          textDecoration: "none",
-          fontSize: typography.body,
-          lineHeight: typography.lineHeight,
-          cursor: "pointer",
-          fontWeight: 500,
-        };
-        mergeStyle(dismissStyle, extensionPromptDismissStyle);
-
-        const messageEl = React.createElement(
-          "div",
-          { style: messageStyle },
-          extensionPromptMessage
-        );
-
-        const handleDismiss = () => {
-          setIsExtensionPromptClosed(true);
-          if (typeof window !== "undefined") {
-            try {
-              window.localStorage.setItem(extensionPromptStorageKey, "1");
-            } catch {
-              // ignore storage errors
-            }
-          }
-          if (onExtensionPromptDismiss) onExtensionPromptDismiss();
-        };
-
-        let ctaEl: React.ReactNode = null;
-        if (extensionPromptCtaHref || onExtensionPromptCtaClick) {
-          if (extensionPromptCtaHref) {
-            ctaEl = React.createElement(
-              "a",
-              {
-                href: extensionPromptCtaHref,
-                style: ctaStyle,
-                onClick: onExtensionPromptCtaClick,
-              },
-              extensionPromptCtaLabel
-            );
-          } else {
-            ctaEl = React.createElement(
-              "button",
-              {
-                type: "button",
-                style: ctaStyle,
-                onClick: onExtensionPromptCtaClick,
-              },
-              extensionPromptCtaLabel
-            );
-          }
-        }
-
-        const dismissEl = React.createElement(
-          "button",
-          {
-            type: "button",
-            style: dismissStyle,
-            onClick: handleDismiss,
-            "aria-label": extensionPromptDismissLabel,
-          },
-          extensionPromptDismissLabel
-        );
-
-        const actionsEl = React.createElement(
-          "div",
-          { style: actionsStyle },
-          ctaEl,
-          dismissEl
-        );
-
-        return React.createElement(
-          "div",
-          { role: "status", "aria-live": "polite", style: containerStyle },
-          messageEl,
-          actionsEl
-        );
-      })()
+    ? React.createElement(ExtensionInstallPromptBanner, {
+        tokens,
+        message: extensionPromptMessage,
+        ctaLabel: extensionPromptCtaLabel,
+        ctaHref: extensionPromptCtaHref,
+        onCtaClick: onExtensionPromptCtaClick,
+        onDismiss: handleExtensionPromptDismiss,
+        dismissLabel: extensionPromptDismissLabel,
+        containerStyle: extensionPromptStyle,
+        messageStyle: extensionPromptMessageStyle,
+        ctaStyle: extensionPromptCtaStyle,
+        dismissStyle: extensionPromptDismissStyle,
+      })
     : null;
 
   const contextValue: AdaptiveContextValue = {
