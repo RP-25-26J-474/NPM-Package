@@ -65,3 +65,8 @@ dist/**/*.d.ts
 
 # AI / agent config
 agent.md
+
+build_error.log
+build_result.txt
+debug-build.cjs
+debug-build.js
