@@ -82,18 +82,36 @@ The `AdaptiveProvider` is the core of the adaptation engine. It intelligently ma
 
 ### Core Hooks & Providers
 - `AdaptiveProvider`: The root context provider for AURA adaptation.
+- `useAdaptive`: Access the resolved profile, adaptive tokens, loading state, and reload action.
+- `predictFallbackTokens`: Run the bundled fallback prediction path when extension data is unavailable.
 
 ### UI Components
 The library exports a comprehensive suite of adaptive components, designed to automatically respond to the user's AURA profile:
 
-| Layout & Containers | Forms & Inputs | Feedback & Navigation | Typography |
-|---------------------|----------------|-----------------------|------------|
-| `AdaptiveCard`      | `AdaptiveInput`| `AdaptiveAlert`       | `AdaptiveText` |
-| `AdaptiveGrid`      | `AdaptiveSelect`| `AdaptiveDialog`     |            |
-| `AdaptiveDrawer`    | `AdaptiveSwitch`| `AdaptiveTooltip`    |            |
-| `AdaptiveList`      | `AdaptiveCheckbox`| `AdaptiveMenu`     |            |
-| `AdaptiveTable`     | `AdaptiveTextarea`| `AdaptiveNavbar`   |            |
-| `AdaptiveDropdown`  | `AdaptiveButton`| `AdaptivePagination` |            |
+| Layout & Containers | Forms & Inputs | Feedback & Navigation | Typography & Media |
+|---------------------|----------------|-----------------------|--------------------|
+| `AdaptiveCard`      | `AdaptiveInput` | `AdaptiveAlert`      | `AdaptiveText` |
+| `AdaptiveGrid`      | `AdaptiveSelect` | `AdaptiveDialog`    | `AdaptiveImageFilter` |
+| `AdaptiveDrawer`    | `AdaptiveSwitch` | `AdaptiveTooltip`   | |
+| `AdaptiveList`      | `AdaptiveCheckbox` | `AdaptiveMenu`    | |
+| `AdaptiveTable`     | `AdaptiveTextarea` | `AdaptiveNavbar`  | |
+| `AdaptiveDropdown`  | `AdaptiveButton` | `AdaptivePagination` | |
+
+### Adaptive Runtime Utilities
+- `BehaviorTracker`
+- `useRealtimeUIUpdates`
+- `useSettingsSync`
+- `useUserSettingsStore`
+- `useTrialManager`
+- `AdaptiveChangeConfirmation`
+- `AdaptiveDifficultyDetector`
+- `AdaptiveFeedback`
+- `AdaptiveFeedbackPrompt`
+- `AdaptiveRevert`
+- `AdaptiveTempUserPrompt`
+- `ComponentFeedbackModal`
+- `DirectionalFeedbackPrompt`
+- `MLFeedbackPrompt`
 
 ## Contributing
 
