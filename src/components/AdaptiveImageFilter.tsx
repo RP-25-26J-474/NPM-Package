@@ -4,7 +4,7 @@ import type { AdaptiveComponentProps, AuraMlEnvelopeV2, AuraProfileV2 } from "..
 
 type AnyStyle = Record<string, any>;
 
-type ColorBlindnessMode = "none" | "monochromacy" | "red-green" | "blue-yellow";
+type ColorBlindnessMode = "none" | "red-green";
 
 type OpenCvLike = {
   Mat?: new (...args: any[]) => any;
@@ -64,11 +64,9 @@ function clampChannel(value: number): number {
   return Math.round(value);
 }
 
-function clampSignal(value: unknown): number {
+function normalizeColorBlindness(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;
-  if (value < 0) return 0;
-  if (value > 1) return 1;
-  return value;
+  return value === 1 ? 1 : 0;
 }
 
 function getProfileFromMlOutput(
@@ -85,36 +83,15 @@ function getProfileFromMlOutput(
 }
 
 function resolveColorBlindnessMode(value: number): ColorBlindnessMode {
-  if (value === 1) return "monochromacy";
-  if (value > 0.5) return "red-green";
-  if (value === 0.25) return "blue-yellow";
-  return "none";
+  return value === 1 ? "red-green" : "none";
 }
 
 function getTransformMatrix(mode: ColorBlindnessMode): number[] | null {
-  if (mode === "monochromacy") {
-    return [
-      0.299, 0.587, 0.114, 0,
-      0.299, 0.587, 0.114, 0,
-      0.299, 0.587, 0.114, 0,
-      0, 0, 0, 1,
-    ];
-  }
-
   if (mode === "red-green") {
     return [
       0.567, 0.433, 0, 0,
       0.558, 0.442, 0, 0,
       0, 0.242, 0.758, 0,
-      0, 0, 0, 1,
-    ];
-  }
-
-  if (mode === "blue-yellow") {
-    return [
-      0.95, 0.05, 0, 0,
-      0, 0.433, 0.567, 0,
-      0, 0.475, 0.525, 0,
       0, 0, 0, 1,
     ];
   }
@@ -129,25 +106,10 @@ function applyPixelFilter(imageData: ImageData, mode: ColorBlindnessMode): Image
     const g = data[i + 1];
     const b = data[i + 2];
 
-    if (mode === "monochromacy") {
-      const y = clampChannel(0.299 * r + 0.587 * g + 0.114 * b);
-      data[i] = y;
-      data[i + 1] = y;
-      data[i + 2] = y;
-      continue;
-    }
-
     if (mode === "red-green") {
       data[i] = clampChannel(0.567 * r + 0.433 * g);
       data[i + 1] = clampChannel(0.558 * r + 0.442 * g);
       data[i + 2] = clampChannel(0.242 * g + 0.758 * b);
-      continue;
-    }
-
-    if (mode === "blue-yellow") {
-      data[i] = clampChannel(0.95 * r + 0.05 * g);
-      data[i + 1] = clampChannel(0.433 * g + 0.567 * b);
-      data[i + 2] = clampChannel(0.475 * g + 0.525 * b);
     }
   }
   return imageData;
@@ -210,7 +172,7 @@ export function AdaptiveImageFilter(props: AdaptiveImageFilterProps) {
 
   const resolvedColorBlindness = useMemo(() => {
     const outputProfile = getProfileFromMlOutput(mlOutput);
-    return clampSignal(
+    return normalizeColorBlindness(
       colorBlindness ??
         outputProfile?.color_blindness ??
         profile?.color_blindness ??
