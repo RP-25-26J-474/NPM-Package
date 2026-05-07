@@ -1,5 +1,5 @@
-const API_ENDPOINT_FALLBACK = "https://optimization-engine-ten.vercel.app/api";
-const RL_ENDPOINT_FALLBACK = "https://rl-service.fly.dev";
+const API_ENDPOINT_FALLBACK = "https://api-gateway.auraui.org/api";
+const RL_ENDPOINT_FALLBACK = "https://api-gateway.auraui.org";
 
 function normalizeEndpoint(value: string): string {
   return value.replace(/\/+$/, "");

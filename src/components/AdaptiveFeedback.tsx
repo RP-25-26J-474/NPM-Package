@@ -157,7 +157,7 @@ export function AdaptiveFeedback() {
     const param = smartInference.relevantParam;
     setTargetParam(param);
 
-    const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
+    const backendUrl = rlEndpoint || "https://api-gateway.auraui.org";
 
     const buildLocalSuggestion = (
       p: string
@@ -261,7 +261,7 @@ export function AdaptiveFeedback() {
   const handleDismissSuggestion = async () => {
     if (!suggestion || !targetParam) return;
 
-    const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
+    const backendUrl = rlEndpoint || "https://api-gateway.auraui.org";
 
     try {
       await fetch(`${backendUrl}/rl/feedback`, {
@@ -298,8 +298,8 @@ export function AdaptiveFeedback() {
       applySettings(settingPayload, "user");
     }
 
-    const reportApi = apiEndpoint || "http://localhost:5000/api";
-    const backendUrl = rlEndpoint || "https://rl-service.fly.dev";
+    const reportApi = apiEndpoint || "https://api-gateway.auraui.org/api";
+    const backendUrl = rlEndpoint || "https://api-gateway.auraui.org";
 
     fetch(`${reportApi}/manual-settings/apply`, {
       method: "POST",

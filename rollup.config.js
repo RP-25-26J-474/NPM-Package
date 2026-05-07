@@ -36,10 +36,10 @@ export default {
         ),
         "process.env.AURA_API_ENDPOINT": JSON.stringify(
           process.env.AURA_API_ENDPOINT ||
-            "https://optimization-engine-ten.vercel.app/api"
+            "https://api-gateway.auraui.org/api"
         ),
         "process.env.AURA_RL_ENDPOINT": JSON.stringify(
-          process.env.AURA_RL_ENDPOINT || "https://rl-service.fly.dev"
+          process.env.AURA_RL_ENDPOINT || "https://api-gateway.auraui.org"
         ),
       },
     }),
