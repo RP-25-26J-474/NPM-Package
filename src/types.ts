@@ -265,7 +265,7 @@ export interface AdaptiveProviderProps {
   simulateExtensionInstalled?: boolean;
   /**
    * API endpoint for behavior tracking and personalization.
-   * Example: 'https://your-backend.com/api'
+   * Example: 'https://api-gateway.auraui.org/api'
    */
   apiEndpoint?: string;
   /**
@@ -285,7 +285,7 @@ export interface AdaptiveProviderProps {
   enableUtilityClasses?: boolean;
   /**
    * RL service endpoint for reinforcement learning feedback.
-   * Example: 'http://localhost:8000'
+   * Example: 'https://api-gateway.auraui.org'
    */
   rlEndpoint?: string;
 
