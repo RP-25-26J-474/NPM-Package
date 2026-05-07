@@ -45,11 +45,13 @@ import {
   AdaptiveProvider,
   AdaptiveButton,
   AdaptiveText,
-} from '@aura-adaptive/aura-ui-adaptor';
+  AdaptiveProfileInspector,
+} from "@aura-adaptive/aura-ui-adaptor";
 
 export function App() {
   return (
-    <AdaptiveProvider>
+    <AdaptiveProvider simulateExtensionInstalled={false}>
+      <AdaptiveProfileInspector />
       <main>
         <AdaptiveText variant="h1">Welcome to AURA</AdaptiveText>
         <AdaptiveText variant="body">
@@ -69,24 +71,38 @@ export function App() {
 
 The `AdaptiveProvider` is the core of the adaptation engine. It intelligently manages how user profiles are loaded:
 
-1. **Extension Mode (Default):** Attempts to securely read the active profile from the AURA browser extension.
-2. **Fallback Mode:** If the extension is unavailable, it gracefully falls back to a bundled prediction model and locally cached fallback data.
-3. **Behavior Signals:** Observes non-content interaction patterns such as click rate, scroll behavior, and interaction timing to support adaptive refinement.
-4. **Installation Prompt:** Can be configured to render an installation prompt for the AURA extension to enhance the user experience.
+1. Default extension mode tries to read the active profile from the AURA browser extension.
+2. If no extension profile is available, the provider falls back to the bundled prediction model and cached fallback data.
+3. Behavior signals observe non-content interaction patterns such as click rate, scroll behavior, and interaction timing to support adaptive refinement.
+
+When the extension is unavailable, the provider can also render a configurable installation prompt.
 
 ## Privacy-Conscious Runtime Signals
 
 `@aura-adaptive/aura-ui-adaptor` includes lightweight behavior-signal monitoring as part of its adaptive runtime, such as click patterns, scroll activity, interaction timing, viewport changes, and adaptation-related events. These signals are used to improve interface personalization and adaptation quality, not to capture private user content. The package is designed to avoid collecting passwords, form input values, or raw user-entered text. Developers should ensure that their application-level privacy notice accurately reflects the use of adaptive interaction signals where required.
 
+## Optional Profile Inspector
+
+Render `<AdaptiveProfileInspector />` anywhere inside `AdaptiveProvider` to add a draggable floating AURA button. Clicking it opens a read-only inspector panel that shows:
+
+- user/runtime state
+- extension availability and login status
+- extension storage profiles for personalized, adaptive, and final selection
+- the live profile currently applied by `AdaptiveProvider`
+- differences between the final extension profile and the applied runtime profile
+- fallback/runtime details when the extension path is unavailable
+
+This inspector is a separate module. `AdaptiveProvider` does not mount it automatically and its existing behavior is unchanged when the inspector is not rendered.
+
 ## API Reference
 
 ### Core Hooks & Providers
+
 - `AdaptiveProvider`: The root context provider for AURA adaptation.
 - `useAdaptive`: Access the resolved profile, adaptive tokens, loading state, and reload action.
 - `predictFallbackTokens`: Run the bundled fallback prediction path when extension data is unavailable.
 
 ### UI Components
-The library exports a comprehensive suite of adaptive components, designed to automatically respond to the user's AURA profile:
 
 | Layout & Containers | Forms & Inputs | Feedback & Navigation | Typography & Media |
 |---------------------|----------------|-----------------------|--------------------|
@@ -98,6 +114,7 @@ The library exports a comprehensive suite of adaptive components, designed to au
 | `AdaptiveDropdown`  | `AdaptiveButton` | `AdaptivePagination` | |
 
 ### Adaptive Runtime Utilities
+
 - `BehaviorTracker`
 - `useRealtimeUIUpdates`
 - `useSettingsSync`
@@ -113,11 +130,36 @@ The library exports a comprehensive suite of adaptive components, designed to au
 - `DirectionalFeedbackPrompt`
 - `MLFeedbackPrompt`
 
-## Contributing
+## Exported Components
 
-We welcome contributions! Please feel free to submit a Pull Request or open an issue if you have suggestions or find bugs.
+The package exports:
 
-To build the project locally:
+- `AdaptiveProvider`
+- `useAdaptive`
+- `predictFallbackTokens`
+- `AdaptiveAlert`
+- `AdaptiveButton`
+- `AdaptiveCard`
+- `AdaptiveCheckbox`
+- `AdaptiveDialog`
+- `AdaptiveDrawer`
+- `AdaptiveDropdown`
+- `AdaptiveGrid`
+- `AdaptiveImageFilter`
+- `AdaptiveInput`
+- `AdaptiveList`
+- `AdaptiveMenu`
+- `AdaptiveNavbar`
+- `AdaptivePagination`
+- `AdaptiveProfileInspector`
+- `AdaptiveSelect`
+- `AdaptiveSwitch`
+- `AdaptiveTable`
+- `AdaptiveText`
+- `AdaptiveTextarea`
+- `AdaptiveTooltip`
+
+## Build
 
 ```bash
 npm install
@@ -126,4 +168,6 @@ npm run build
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT
+
+

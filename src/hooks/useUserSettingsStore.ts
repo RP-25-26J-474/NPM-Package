@@ -221,49 +221,54 @@ export function useUserSettingsStore({
     let cancelled = false;
 
     async function init() {
-      // Step 1 – try extension bridge (fastest, most accurate)
+      // Step 1 – try extension bridge for local hydration only.
+      // The extension can contain a stale profile, so it must not overwrite
+      // the server just because the page was refreshed.
       const extProfile = await fetchProfileFromExtension(EXT_TIMEOUT_MS);
 
       if (cancelled) return;
 
-      if (extProfile) {
-        const merged = { ...(loadFromLocalStorage(userId) ?? {}), ...extProfile };
-        setSettings(merged);
-        setSource('extension');
-        saveToLocalStorage(userId, merged);
-        setIsLoaded(true);
-        onLoadedRef.current?.(merged, 'extension');
-        console.log('[AURA Settings] Loaded from extension.');
-        serverPost(extProfile, 'extension'); // persist to server too
-        return;
-      }
-
-      // Step 2 – fall back to localStorage
+      // Step 2 – try localStorage as a fast fallback while the server loads
       const cached = loadFromLocalStorage(userId);
-      if (cached) {
-        setSettings(cached);
-        setSource('localstorage');
-        setIsLoaded(true);
-        onLoadedRef.current?.(cached, 'localstorage');
-        console.log('[AURA Settings] Loaded from localStorage.');
-      }
 
-      // Step 3 – try server (async, will update state when it arrives)
+      // Step 3 – server settings are authoritative for persisted dashboard
+      // changes. This prevents refresh-time extension/default profiles from
+      // re-saving settings the user did not choose.
       const serverProfile = await serverGet();
       if (cancelled) return;
       if (serverProfile) {
-        const merged = { ...(cached ?? {}), ...serverProfile };
+        const merged = { ...(cached ?? {}), ...(extProfile ?? {}), ...serverProfile };
         setSettings(merged);
         setSource('dashboard');
         saveToLocalStorage(userId, merged);
         setIsLoaded(true);
         onLoadedRef.current?.(merged, 'dashboard');
         console.log('[AURA Settings] Loaded from server.');
+        return;
       }
 
-      if (!cached && !serverProfile) {
-        setIsLoaded(true); // nothing found – let the UI proceed with defaults
+      if (extProfile) {
+        const merged = { ...(cached ?? {}), ...extProfile };
+        setSettings(merged);
+        setSource('extension');
+        saveToLocalStorage(userId, merged);
+        setIsLoaded(true);
+        onLoadedRef.current?.(merged, 'extension');
+        console.log('[AURA Settings] Loaded from extension.');
+        return;
       }
+
+      // Step 4 – fall back to localStorage
+      if (cached) {
+        setSettings(cached);
+        setSource('localstorage');
+        setIsLoaded(true);
+        onLoadedRef.current?.(cached, 'localstorage');
+        console.log('[AURA Settings] Loaded from localStorage.');
+        return;
+      }
+
+      setIsLoaded(true); // nothing found – let the UI proceed with defaults
     }
 
     init();
