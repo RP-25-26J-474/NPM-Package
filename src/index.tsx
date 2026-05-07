@@ -26,6 +26,7 @@ export { AdaptiveDrawer } from "./components/AdaptiveDrawer";
 export { AdaptiveCheckbox } from "./components/AdaptiveCheckbox";
 export { AdaptiveSwitch } from "./components/AdaptiveSwitch";
 export { AdaptiveDialog } from "./components/AdaptiveDialog";
+export { AdaptiveProfileInspector } from "./components/AdaptiveProfileInspector";
 
 export { BehaviorTracker } from "./BehaviorTracker";
 export { useRealtimeUIUpdates } from "./hooks/useRealtimeUIUpdates";
@@ -46,4 +47,7 @@ export type {
   AuraMlEnvelopeV2,
   AuraTokens,
   AdaptiveContextValue,
+  AuraInspectorSnapshot,
+  AuraInspectorRuntimeState,
+  AuraInspectorExtensionState,
 } from "./types";

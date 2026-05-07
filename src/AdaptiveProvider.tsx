@@ -402,10 +402,23 @@ export function AdaptiveProvider({
         }]);
     }
 
-    // Persist the update to localStorage and POST to server.
+    const isHydrationSource =
+      source === 'extension' ||
+      source === 'dashboard' ||
+      source === 'localstorage';
+
+    // Persist user/ML updates to localStorage and POST to server.
+    // Skip hydration sources; they are reads from existing state and should
+    // not create new settings history rows on refresh.
     // Skip when source is 'sse:...' (update arrived from SSE) to prevent echo loop.
     // Skip when source is 'temp_reset' — session-only change, never written to DB.
-    if (storeUpdateRef.current && source !== 'revert' && source !== 'temp_reset' && !source.startsWith('sse:')) {
+    if (
+      storeUpdateRef.current &&
+      !isHydrationSource &&
+      source !== 'revert' &&
+      source !== 'temp_reset' &&
+      !source.startsWith('sse:')
+    ) {
       storeUpdateRef.current(updatedProfile, source);
     }
 
@@ -688,8 +701,22 @@ export function AdaptiveProvider({
         handleProfileDiff
       );
     } catch (err) {
-      console.error("[AURA] Extension path failed", err);
-      setError("Failed to load personalization from extension");
+      const message = err instanceof Error ? err.message : String(err);
+    
+      const isExpectedExtensionMiss =
+        message === "Extension response timeout" ||
+        message === "No window";
+    
+      // Missing extension 
+      if (debugMode) {
+        if (isExpectedExtensionMiss) {
+          console.info("[AURA] Extension not available. Using fallback profile.");
+        } else {
+          console.error("[AURA] Unexpected extension bridge failure", err);
+        }
+      }
+      setError(undefined);
+      setIsExtensionInstalled(false);
       setIsExtensionLoggedIn(false);
       await loadFallback(setUserId, setSource, setProfile, setTokens);
       // Restore the host app userId so feedback stays unlocked on refresh

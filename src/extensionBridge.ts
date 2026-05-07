@@ -1,32 +1,28 @@
 import { DEFAULT_GUEST_PROFILE } from "./utils";
 
-import type { AuraMlEnvelopeV2, AuraProfileV2 } from "./types";
+import type {
+  AuraExtensionFinalProfileSnapshot,
+  AuraExtensionStatusSnapshot,
+  AuraExtensionStoredProfileSnapshot,
+  AuraInspectorExtensionState,
+  AuraMlEnvelopeV2,
+  AuraProfileV2,
+} from "./types";
 
 type AnyRecord = Record<string, unknown>;
 
 type AuraExtensionBridge = {
   getStatus: () => Promise<AuraExtensionStatus>;
+  getPersonalizedProfile: () => Promise<AuraExtensionStoredProfileResponse>;
+  getAdaptiveProfile: () => Promise<AuraExtensionStoredProfileResponse>;
   getFinalProfile: () => Promise<AuraExtensionFinalProfileResponse>;
 };
 
-type AuraExtensionStatus = {
-  extensionPresent?: boolean;
-  loggedIn?: boolean;
-  userId?: string | null;
-  token?: string | null;
-  user?: {
-    email?: string | null;
-    name?: string | null;
-  } | null;
-  error?: string;
-};
+type AuraExtensionStatus = AuraExtensionStatusSnapshot;
 
-type AuraExtensionFinalProfileResponse = {
-  profile?: unknown;
-  available?: boolean;
-  error?: string;
-  sourceType?: string | null;
-};
+type AuraExtensionStoredProfileResponse = AuraExtensionStoredProfileSnapshot;
+
+type AuraExtensionFinalProfileResponse = AuraExtensionFinalProfileSnapshot;
 
 export type ExtensionLoadResult = {
   installed: boolean;
@@ -274,6 +270,16 @@ function createRealExtensionBridge(timeoutMs: number): AuraExtensionBridge {
 
   return {
     getStatus: () => request<AuraExtensionStatus>("AURA_EXT_PING", "AURA_EXT_PONG"),
+    getPersonalizedProfile: () =>
+      request<AuraExtensionStoredProfileResponse>(
+        "AURA_EXT_ML_PERSONALIZED_PROFILE_PING",
+        "AURA_EXT_ML_PERSONALIZED_PROFILE_PONG"
+      ),
+    getAdaptiveProfile: () =>
+      request<AuraExtensionStoredProfileResponse>(
+        "AURA_EXT_ADAPTIVE_PROFILE_PING",
+        "AURA_EXT_ADAPTIVE_PROFILE_PONG"
+      ),
     getFinalProfile: () =>
       request<AuraExtensionFinalProfileResponse>(
         "AURA_EXT_ML_FINAL_PROFILE_PING",
@@ -316,6 +322,79 @@ export async function loadAdaptiveProfileFromExtension(
     loggedIn: true,
     envelope,
     extensionUserId: extUserId,
+  };
+}
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return "Extension bridge request failed";
+}
+
+export async function loadInspectorStateFromExtension(
+  fallbackUserId?: string,
+  timeoutMs = 2200
+): Promise<AuraInspectorExtensionState> {
+  const bridge = createRealExtensionBridge(timeoutMs);
+
+  let status: AuraExtensionStatus;
+  try {
+    status = await bridge.getStatus();
+  } catch (err) {
+    return {
+      status: {
+        extensionPresent: false,
+        loggedIn: false,
+        userId: fallbackUserId ?? null,
+        error: getErrorMessage(err),
+      },
+      personalized: null,
+      adaptive: null,
+      final: null,
+      normalizedFinalEnvelope: null,
+    };
+  }
+
+  if (status.extensionPresent !== true) {
+    return {
+      status,
+      personalized: null,
+      adaptive: null,
+      final: null,
+      normalizedFinalEnvelope: null,
+    };
+  }
+
+  const [personalized, adaptive, final] = await Promise.all([
+    bridge.getPersonalizedProfile().catch((err) => ({
+      available: false,
+      error: getErrorMessage(err),
+      profile: null,
+    })),
+    bridge.getAdaptiveProfile().catch((err) => ({
+      available: false,
+      error: getErrorMessage(err),
+      profile: null,
+    })),
+    bridge.getFinalProfile().catch((err) => ({
+      available: false,
+      error: getErrorMessage(err),
+      profile: null,
+      sourceType: null,
+    })),
+  ]);
+
+  return {
+    status,
+    personalized,
+    adaptive,
+    final,
+    normalizedFinalEnvelope:
+      final.available === true
+        ? normalizeExtensionEnvelope(
+            final,
+            getExtensionDisplayUserId(status, fallbackUserId)
+          )
+        : null,
   };
 }
 
