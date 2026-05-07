@@ -34,6 +34,15 @@ export interface AuraProfileV2 {
   target_size: number; // px
   tooltip_assist: boolean;
   layout_simplification: boolean;
+
+  /**
+   * Color-blindness signal from the ML engine.
+   * 0/undefined: no image filter
+   * 0.25: blue-yellow support
+   * >0.5: red-green support
+   * 1: complete color blindness / monochromacy
+   */
+  color_blindness?: number;
 }
 
 export interface AuraMlMetadataV2 {

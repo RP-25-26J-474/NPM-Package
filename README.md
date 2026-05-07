@@ -156,37 +156,61 @@ Render `<AdaptiveProfileInspector />` anywhere inside `AdaptiveProvider` to add 
 
 This inspector is a separate module. `AdaptiveProvider` does not mount it automatically and its existing behavior is unchanged when the inspector is not rendered.
 
-## Exported Components
+## API Reference
 
-The package exports:
+### Core Hooks & Providers
 
-- `AdaptiveProvider`
-- `useAdaptive`
-- `createAdaptiveCssVariables`
-- `applyAdaptiveCssVariables`
-- `predictFallbackTokens`
-- `AdaptiveAlert`
-- `AdaptiveButton`
-- `AdaptiveCard`
-- `AdaptiveCheckbox`
-- `AdaptiveDialog`
-- `AdaptiveDrawer`
-- `AdaptiveDropdown`
-- `AdaptiveGrid`
-- `AdaptiveInput`
-- `AdaptiveList`
-- `AdaptiveMenu`
-- `AdaptiveNavbar`
-- `AdaptivePagination`
-- `AdaptiveProfileInspector`
-- `AdaptiveSelect`
-- `AdaptiveSwitch`
-- `AdaptiveTable`
-- `AdaptiveText`
-- `AdaptiveTextarea`
-- `AdaptiveTooltip`
+- `AdaptiveProvider`: The root context provider for AURA adaptation.
+- `useAdaptive`: Access the resolved profile, adaptive tokens, loading state, and reload action.
+- `predictFallbackTokens`: Run the bundled fallback prediction path when extension data is unavailable.
 
-## Build
+### UI Components
+
+| Layout & Containers | Forms & Inputs | Feedback & Navigation | Typography & Media |
+|---------------------|----------------|-----------------------|--------------------|
+| `AdaptiveCard`      | `AdaptiveInput` | `AdaptiveAlert`      | `AdaptiveText` |
+| `AdaptiveGrid`      | `AdaptiveSelect` | `AdaptiveDialog`    | `AdaptiveImageFilter` |
+| `AdaptiveDrawer`    | `AdaptiveSwitch` | `AdaptiveTooltip`   | |
+| `AdaptiveList`      | `AdaptiveCheckbox` | `AdaptiveMenu`    | |
+| `AdaptiveTable`     | `AdaptiveTextarea` | `AdaptiveNavbar`  | |
+| `AdaptiveDropdown`  | `AdaptiveButton` | `AdaptivePagination` | |
+
+### Adaptive Runtime Utilities
+
+- `BehaviorTracker`
+- `useRealtimeUIUpdates`
+- `useSettingsSync`
+- `useUserSettingsStore`
+- `useTrialManager`
+- `AdaptiveChangeConfirmation`
+- `AdaptiveDifficultyDetector`
+- `AdaptiveFeedback`
+- `AdaptiveFeedbackPrompt`
+- `AdaptiveRevert`
+- `AdaptiveTempUserPrompt`
+- `ComponentFeedbackModal`
+- `DirectionalFeedbackPrompt`
+- `MLFeedbackPrompt`
+
+## API Reference
+
+### UI Components
+The library exports a comprehensive suite of adaptive components, designed to automatically respond to the user's AURA profile:
+
+| Layout & Containers | Forms & Inputs | Feedback & Navigation | Typography & Media |
+|---------------------|----------------|-----------------------|--------------------|
+| `AdaptiveCard`      | `AdaptiveInput` | `AdaptiveAlert`      | `AdaptiveText` |
+| `AdaptiveGrid`      | `AdaptiveSelect` | `AdaptiveDialog`    | `AdaptiveImageFilter` |
+| `AdaptiveDrawer`    | `AdaptiveSwitch` | `AdaptiveTooltip`   | |
+| `AdaptiveList`      | `AdaptiveCheckbox` | `AdaptiveMenu`    | |
+| `AdaptiveTable`     | `AdaptiveTextarea` | `AdaptiveNavbar`  | |
+| `AdaptiveDropdown`  | `AdaptiveButton` | `AdaptivePagination` | |
+
+## Contributing
+
+We welcome contributions! Please feel free to submit a Pull Request or open an issue if you have suggestions or find bugs.
+
+To build the project locally:
 
 ```bash
 npm install

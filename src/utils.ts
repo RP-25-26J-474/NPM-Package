@@ -35,6 +35,7 @@ export const DEFAULT_GUEST_PROFILE: AuraProfileV2 = {
   target_size: 44,
   tooltip_assist: false,
   layout_simplification: false,
+  color_blindness: 0,
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -220,7 +221,8 @@ export const mockFetchAuraEnvelope = async (
           reduced_motion: true,
           target_size: 32,
           tooltip_assist: true,
-          layout_simplification: true
+          layout_simplification: true,
+          color_blindness: 0
         }
       },
       diff: {
