@@ -402,6 +402,7 @@ export function AdaptiveProvider({
       target_size: targetSizeValue,
       tooltip_assist: settings.tooltipAssist ?? settings.tooltip_assist ?? currentProfile?.tooltip_assist ?? false,
       layout_simplification: settings.layoutSimplification ?? settings.layout_simplification ?? currentProfile?.layout_simplification ?? false,
+      color_blindness: settings.colorBlindness ?? settings.color_blindness ?? currentProfile?.color_blindness ?? 0,
     };
 
     setProfile(updatedProfile);

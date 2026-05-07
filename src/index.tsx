@@ -30,6 +30,7 @@ export { AdaptiveDrawer } from "./components/AdaptiveDrawer";
 export { AdaptiveCheckbox } from "./components/AdaptiveCheckbox";
 export { AdaptiveSwitch } from "./components/AdaptiveSwitch";
 export { AdaptiveDialog } from "./components/AdaptiveDialog";
+export { AdaptiveImageFilter } from "./components/AdaptiveImageFilter";
 export { AdaptiveProfileInspector } from "./components/AdaptiveProfileInspector";
 
 export { BehaviorTracker } from "./BehaviorTracker";
