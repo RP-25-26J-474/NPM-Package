@@ -189,10 +189,16 @@ export function AdaptiveProvider({
   const [isExtensionPromptClosed, setIsExtensionPromptClosed] =
     useState<boolean>(false);
   const [behaviorTracker, setBehaviorTracker] = useState<BehaviorTracker | null>(null);
+  const [isSessionResetActive, setIsSessionResetActive] = useState<boolean>(false);
+  const sessionResetActiveRef = useRef<boolean>(false);
 
   // Used to persist settings to localStorage from within handleSettingsUpdate
   // (storeUpdateSettings is set after useUserSettingsStore is called below)
   const storeUpdateRef = useRef<((patch: any, src?: string) => void) | null>(null);
+
+  useEffect(() => {
+    sessionResetActiveRef.current = isSessionResetActive;
+  }, [isSessionResetActive]);
 
   useEffect(() => {
     if (enableUtilityClasses) ensureAuraUtilityStyles();
@@ -334,9 +340,24 @@ export function AdaptiveProvider({
   }, []);
 
   const handleSettingsUpdate = useCallback((settings: any, source: string, mlConf?: number) => {
+    const isSessionResetSource = source === 'temp_reset';
+    const isUserDrivenSource = source === 'user' || source === 'revert';
+
+    if (sessionResetActiveRef.current && !isSessionResetSource && !isUserDrivenSource) {
+      return;
+    }
+
+    if (isSessionResetSource) {
+      sessionResetActiveRef.current = true;
+      setIsSessionResetActive(true);
+    } else if (isUserDrivenSource && sessionResetActiveRef.current) {
+      sessionResetActiveRef.current = false;
+      setIsSessionResetActive(false);
+    }
+
     // Block RL/ML/SSE-driven UI changes for guest users
     const isGuest = !isLoggedInUserId(userIdRef.current);
-    if (isGuest && source !== 'user' && source !== 'revert') return;
+    if (isGuest && !isUserDrivenSource && !isSessionResetSource) return;
 
     const currentProfile = profileRef.current;
     
@@ -386,31 +407,29 @@ export function AdaptiveProvider({
     setProfile(updatedProfile);
     const newTokens = deriveTokensFromProfile(updatedProfile);
     setTokens(newTokens);
-    setSource('user');
-    
-    if (typeof document !== 'undefined') {
-        const root = document.documentElement;
-        Object.entries(newTokens.colors).forEach(([key, value]) => {
-            root.style.setProperty(`--aura-${key}`, value as string);
-        });
-        root.style.setProperty('--aura-base-size', newTokens.typography.baseSize);
-        root.style.setProperty('--aura-line-height', String(newTokens.typography.lineHeight));
-        root.style.setProperty('--aura-spacing-base', `${newTokens.spacing.gapY}px`);
-        root.style.setProperty('--aura-min-target-size', `${newTokens.controls.minTargetSize}px`);
-    }
-    
-    const isSignificant = isSignificantDeviation(settings, currentProfile || initialProfile);
+    setSource(isSessionResetSource ? 'fallback' : 'user');
+    applyAdaptiveCssVariables(newTokens);
 
-    setLatestSettings(settings);
-    setSettingsSource(source as 'manual' | 'ml' | 'trial');
-    setMlConfidence(mlConf || 0.5);
-    
-    if (source === 'ml' && isSignificant) {
+    if (isSessionResetSource) {
+      setPendingDiffs([]);
+      setMlChangedSettings([]);
+      setLatestSettings(null);
+      setSettingsSource('manual');
+      setMlConfidence(0.5);
+    } else {
+      const isSignificant = isSignificantDeviation(settings, currentProfile || initialProfile);
+
+      setLatestSettings(settings);
+      setSettingsSource(source as 'manual' | 'ml' | 'trial');
+      setMlConfidence(mlConf || 0.5);
+
+      if (source === 'ml' && isSignificant) {
         setMlChangedSettings(prev => [...prev, {
             key: primaryChangedKey,
             oldVal: oldVal,
             newVal: settings[primaryChangedKey] !== undefined ? settings[primaryChangedKey] : targetSizeValue
         }]);
+      }
     }
 
     const isHydrationSource =
@@ -443,6 +462,7 @@ export function AdaptiveProvider({
   // Handle Diff from Extension/Backend Profile Load
   const handleProfileDiff = useCallback((diff: any) => {
       if (!diff || !diff.changed || diff.changed.length === 0) return;
+      if (sessionResetActiveRef.current) return;
       // Guest users should not receive profile diffs from ML
       if (!isLoggedInUserId(userIdRef.current)) return;
       
@@ -460,7 +480,7 @@ export function AdaptiveProvider({
   useSettingsSync({
     userId: (isLoggedInUserId(userId) ? userId : initialUserId) || 'guest',
     apiEndpoint: apiEndpoint || '',
-    enabled: !!apiEndpoint && (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)),
+    enabled: !!apiEndpoint && !isSessionResetActive && (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)),
     // Prefix source with 'sse:' so handleSettingsUpdate skips the server re-POST
     onSettingsUpdate: (settings, sseSource) => handleSettingsUpdate(settings, `sse:${sseSource || 'unknown'}`),
     onConnect: () => {},
@@ -657,6 +677,11 @@ export function AdaptiveProvider({
 
   // REAL path: extension
   const loadFromExtension = useCallback(async () => {
+    if (sessionResetActiveRef.current) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(undefined);
@@ -813,6 +838,7 @@ export function AdaptiveProvider({
       }
 
       // When extension says profile changed -> re-fetch
+      if (sessionResetActiveRef.current) return;
       loadFromExtension();
     }
 
@@ -934,21 +960,11 @@ export function AdaptiveProvider({
           userId: (isLoggedInUserId(userId) ? userId : initialUserId) || "guest",
           apiEndpoint: apiEndpoint || "",
           tracker: behaviorTracker,
-          enabled: enableBehaviorTracking,
+          enabled: enableBehaviorTracking && !isSessionResetActive,
           onResetConfirmed: () => {
             // Apply the default (guest) profile for this session only.
             // 'temp_reset' source skips localStorage / server / extension persistence.
-            handleSettingsUpdate({
-              fontSize:    initialProfile.font_size,
-              lineHeight:  initialProfile.line_height,
-              contrast:    initialProfile.contrast_mode,
-              theme:       initialProfile.theme,
-              targetSize:  initialProfile.target_size,
-              spacing:     initialProfile.element_spacing_y,
-              reducedMotion:       initialProfile.reduced_motion,
-              tooltipAssist:       initialProfile.tooltip_assist,
-              layoutSimplification: initialProfile.layout_simplification,
-            }, 'temp_reset');
+            handleSettingsUpdate(initialProfile, 'temp_reset');
           },
       }),
       (isLoggedInUserId(userId) || isLoggedInUserId(initialUserId)) && enableBehaviorTracking && React.createElement(AdaptiveFeedback, null),
