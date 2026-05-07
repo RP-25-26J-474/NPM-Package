@@ -6,6 +6,10 @@ export {
   resolveAuraApiEndpoint,
   resolveAuraRlEndpoint,
 } from "./endpoints";
+export {
+  applyAdaptiveCssVariables,
+  createAdaptiveCssVariables,
+} from "./adaptiveCssVariables";
 export { predictFallbackTokens } from "./fallback-ml/predict";
 export { AdaptiveButton } from "./components/AdaptiveButton";
 export { AdaptiveText } from "./components/AdaptiveText";
@@ -46,6 +50,8 @@ export type {
   AuraProfileV2,
   AuraMlEnvelopeV2,
   AuraTokens,
+  AuraCssVariables,
+  AuraCssVariableName,
   AdaptiveContextValue,
   AuraInspectorSnapshot,
   AuraInspectorRuntimeState,

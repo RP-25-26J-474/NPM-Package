@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@aura-adaptive/aura-ui-adaptor.svg)](https://www.npmjs.com/package/@aura-adaptive/aura-ui-adaptor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**@aura-adaptive/aura-ui-adaptor** is a powerful React component library that intelligently adapts UI presentation in real-time based on ML-driven user profiles and JSON rules. It empowers developers to build highly accessible, personalized, and adaptive web applications with minimal effort.
+**@aura-adaptive/aura-ui-adaptor** is a token-first React adaptive UI runtime and component library. It adapts UI presentation in real time from AURA profile data, exposes token-driven CSS variables and `a-*` utility classes, and keeps the optional adaptive component layer for teams that want ready-made primitives.
 
 ## Features
 
@@ -11,6 +11,8 @@
 - **Extensive Component Library:** Offers a wide range of adaptive primitives (Buttons, Cards, Inputs, Tables, Dialogs, etc.).
 - **Accessibility First:** Applies adaptive design tokens for typography, spacing, contrast, motion, layout, and interaction comfort.
 - **Behavior-Aware Adaptation:** Uses lightweight runtime interaction signals such as click rate, scroll speed, and interaction timing to support adaptive UI refinement.
+- **Token-Driven Utility Classes:** Injects optional `a-*` utility classes such as `a-card`, `a-readable`, and `a-action-primary`.
+- **Adaptive CSS Variables:** Updates `:root` variables whenever the active ML profile changes.
 - **Seamless Integration:** Easy-to-use `AdaptiveProvider` and hooks for effortless adoption in existing React applications.
 - **Fallback Mechanism:** Built-in prediction models ensure a graceful fallback when the extension is not available.
 
@@ -52,7 +54,8 @@ export function App() {
   return (
     <AdaptiveProvider simulateExtensionInstalled={false}>
       <AdaptiveProfileInspector />
-      <main>
+      <main className="a-page">
+        <section className="a-card a-stack">
         <AdaptiveText variant="h1">Welcome to AURA</AdaptiveText>
         <AdaptiveText variant="body">
           Experience a dynamically adapting user interface.
@@ -60,11 +63,70 @@ export function App() {
         <AdaptiveButton variant="primary" onClick={() => alert('Clicked!')}>
           Get Started
         </AdaptiveButton>
+        </section>
       </main>
     </AdaptiveProvider>
   );
 }
 
+```
+
+No CSS import is required. `AdaptiveProvider` injects the AURA utility classes once and updates the adaptive CSS variables whenever tokens change.
+
+## AURA Utility Classes
+
+The utility layer is intentionally small and AURA-specific. Classes describe adaptive UI intent rather than fixed visual values:
+
+- `a-page`, `a-section`, `a-stack`, `a-cluster`, `a-flow`, `a-grid-adaptive`
+- `a-readable`, `a-heading`, `a-subheading`, `a-caption`, `a-muted`, `a-emphasis`
+- `a-surface`, `a-panel`, `a-card`, `a-divider`, `a-border-adaptive`
+- `a-action-primary`, `a-action-secondary`, `a-action-quiet`, `a-control`, `a-input`
+- `a-touch-target`, `a-focus-ring`, `a-alert`, `a-alert-success`, `a-alert-warning`, `a-alert-danger`
+- `a-assistive`, `a-tooltip-target`, `a-interactive`
+
+The class names remain stable. Their behavior changes through AURA CSS variables derived from the active ML profile.
+
+Example:
+
+```tsx
+<button className="a-action-primary a-focus-ring">
+  Save changes
+</button>
+```
+
+When AURA updates `font_size`, `target_size`, `contrast_mode`, `reduced_motion`, or spacing values, the button updates automatically.
+
+## CSS Variables
+
+`AdaptiveProvider` writes variables such as:
+
+```css
+--aura-color-background
+--aura-color-surface
+--aura-color-text
+--aura-color-primary
+--aura-color-on-primary
+--aura-font-size-body
+--aura-font-size-heading
+--aura-line-height
+--aura-spacing-gap-x
+--aura-spacing-gap-y
+--aura-spacing-pad-x
+--aura-spacing-pad-y
+--aura-control-min-target-size
+--aura-motion-duration
+```
+
+You can use them in your own CSS too:
+
+```css
+.checkout-summary {
+  background: var(--aura-color-surface);
+  color: var(--aura-color-text);
+  padding: var(--aura-spacing-pad-y) var(--aura-spacing-pad-x);
+  font-size: var(--aura-font-size-body);
+  line-height: var(--aura-line-height);
+}
 ```
 
 ## Provider Behavior
@@ -100,6 +162,8 @@ The package exports:
 
 - `AdaptiveProvider`
 - `useAdaptive`
+- `createAdaptiveCssVariables`
+- `applyAdaptiveCssVariables`
 - `predictFallbackTokens`
 - `AdaptiveAlert`
 - `AdaptiveButton`
@@ -132,5 +196,3 @@ npm run build
 ## License
 
 MIT
-
-
