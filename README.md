@@ -52,8 +52,7 @@ import {
 
 export function App() {
   return (
-    <AdaptiveProvider simulateExtensionInstalled={false}>
-      <AdaptiveProfileInspector />
+    <AdaptiveProvider>
       <main className="a-page">
         <section className="a-card a-stack">
         <AdaptiveText variant="h1">Welcome to AURA</AdaptiveText>
@@ -129,46 +128,6 @@ You can use them in your own CSS too:
 }
 ```
 
-## Provider Behavior
-
-The `AdaptiveProvider` is the core of the adaptation engine. It intelligently manages how user profiles are loaded:
-
-1. Default extension mode tries to read the active profile from the AURA browser extension.
-2. If no extension profile is available, the provider falls back to the bundled prediction model and cached fallback data.
-3. Behavior signals observe non-content interaction patterns such as click rate, scroll behavior, and interaction timing to support adaptive refinement.
-
-When the extension is unavailable, the provider can also render a configurable installation prompt.
-
-## API Gateway Defaults
-
-The package defaults to the AURA API Gateway:
-
-```ts
-import {
-  DEFAULT_AURA_API_ENDPOINT,
-  DEFAULT_AURA_RL_ENDPOINT,
-} from "@aura-adaptive/aura-ui-adaptor";
-
-console.log(DEFAULT_AURA_API_ENDPOINT); // https://api-gateway.auraui.org/api
-console.log(DEFAULT_AURA_RL_ENDPOINT);  // https://api-gateway.auraui.org
-```
-
-These match the gateway compatibility routes:
-
-- Optimization API calls use `https://api-gateway.auraui.org/api`
-- RL calls append `/rl/...` to `https://api-gateway.auraui.org`
-
-Override them when needed:
-
-```tsx
-<AdaptiveProvider
-  apiEndpoint="http://localhost:4000/api"
-  rlEndpoint="http://localhost:9000"
->
-  <App />
-</AdaptiveProvider>
-```
-
 ## Privacy-Conscious Runtime Signals
 
 `@aura-adaptive/aura-ui-adaptor` includes lightweight behavior-signal monitoring as part of its adaptive runtime, such as click patterns, scroll activity, interaction timing, viewport changes, and adaptation-related events. These signals are used to improve interface personalization and adaptation quality, not to capture private user content. The package is designed to avoid collecting passwords, form input values, or raw user-entered text. Developers should ensure that their application-level privacy notice accurately reflects the use of adaptive interaction signals where required.
@@ -188,12 +147,6 @@ This inspector is a separate module. `AdaptiveProvider` does not mount it automa
 
 ## API Reference
 
-### Core Hooks & Providers
-
-- `AdaptiveProvider`: The root context provider for AURA adaptation.
-- `useAdaptive`: Access the resolved profile, adaptive tokens, loading state, and reload action.
-- `predictFallbackTokens`: Run the bundled fallback prediction path when extension data is unavailable.
-
 ### UI Components
 
 | Layout & Containers | Forms & Inputs | Feedback & Navigation | Typography & Media |
@@ -205,36 +158,6 @@ This inspector is a separate module. `AdaptiveProvider` does not mount it automa
 | `AdaptiveTable`     | `AdaptiveTextarea` | `AdaptiveNavbar`  | |
 | `AdaptiveDropdown`  | `AdaptiveButton` | `AdaptivePagination` | |
 
-### Adaptive Runtime Utilities
-
-- `BehaviorTracker`
-- `useRealtimeUIUpdates`
-- `useSettingsSync`
-- `useUserSettingsStore`
-- `useTrialManager`
-- `AdaptiveChangeConfirmation`
-- `AdaptiveDifficultyDetector`
-- `AdaptiveFeedback`
-- `AdaptiveFeedbackPrompt`
-- `AdaptiveRevert`
-- `AdaptiveTempUserPrompt`
-- `ComponentFeedbackModal`
-- `DirectionalFeedbackPrompt`
-- `MLFeedbackPrompt`
-
-## API Reference
-
-### UI Components
-The library exports a comprehensive suite of adaptive components, designed to automatically respond to the user's AURA profile:
-
-| Layout & Containers | Forms & Inputs | Feedback & Navigation | Typography & Media |
-|---------------------|----------------|-----------------------|--------------------|
-| `AdaptiveCard`      | `AdaptiveInput` | `AdaptiveAlert`      | `AdaptiveText` |
-| `AdaptiveGrid`      | `AdaptiveSelect` | `AdaptiveDialog`    | `AdaptiveImageFilter` |
-| `AdaptiveDrawer`    | `AdaptiveSwitch` | `AdaptiveTooltip`   | |
-| `AdaptiveList`      | `AdaptiveCheckbox` | `AdaptiveMenu`    | |
-| `AdaptiveTable`     | `AdaptiveTextarea` | `AdaptiveNavbar`  | |
-| `AdaptiveDropdown`  | `AdaptiveButton` | `AdaptivePagination` | |
 
 ## Contributing
 
