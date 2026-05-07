@@ -402,10 +402,23 @@ export function AdaptiveProvider({
         }]);
     }
 
-    // Persist the update to localStorage and POST to server.
+    const isHydrationSource =
+      source === 'extension' ||
+      source === 'dashboard' ||
+      source === 'localstorage';
+
+    // Persist user/ML updates to localStorage and POST to server.
+    // Skip hydration sources; they are reads from existing state and should
+    // not create new settings history rows on refresh.
     // Skip when source is 'sse:...' (update arrived from SSE) to prevent echo loop.
     // Skip when source is 'temp_reset' — session-only change, never written to DB.
-    if (storeUpdateRef.current && source !== 'revert' && source !== 'temp_reset' && !source.startsWith('sse:')) {
+    if (
+      storeUpdateRef.current &&
+      !isHydrationSource &&
+      source !== 'revert' &&
+      source !== 'temp_reset' &&
+      !source.startsWith('sse:')
+    ) {
       storeUpdateRef.current(updatedProfile, source);
     }
 
