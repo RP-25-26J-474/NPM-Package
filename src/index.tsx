@@ -7,8 +7,13 @@ export {
   resolveAuraRlEndpoint,
 } from "./endpoints";
 export {
+  AURA_MAX_TEXT_SCALE,
+  AURA_MIN_TEXT_SCALE,
   applyAdaptiveCssVariables,
   createAdaptiveCssVariables,
+  decreaseAuraTextScale,
+  increaseAuraTextScale,
+  setAuraTextScale,
 } from "./adaptiveCssVariables";
 export { predictFallbackTokens } from "./fallback-ml/predict";
 export { AdaptiveButton } from "./components/AdaptiveButton";

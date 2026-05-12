@@ -119,7 +119,11 @@ const getBaseBackgroundAndText = (
 
 export const deriveTokensFromProfile = (profile: AuraProfileV2): AuraTokens => {
   const basePx = clamp(profile.font_size, 10, 28);
-  const baseSize = basePx.toString() + "px";
+  const remFromPx = (value: number) =>
+    (Math.round((value / 16) * 10000) / 10000).toString() + "rem";
+  const scaledRemFromPx = (value: number) =>
+    "calc(" + remFromPx(value) + " * var(--aura-text-scale, 1))";
+  const baseSize = scaledRemFromPx(basePx);
 
   const highContrast = profile.contrast_mode === "high";
 
@@ -147,11 +151,11 @@ export const deriveTokensFromProfile = (profile: AuraProfileV2): AuraTokens => {
     baseSize,
     lineHeight: profile.line_height,
 
-    h1: "calc(" + baseSize + " + 12px)",
-    h2: "calc(" + baseSize + " + 8px)",
-    h3: "calc(" + baseSize + " + 4px)",
+    h1: scaledRemFromPx(basePx + 12),
+    h2: scaledRemFromPx(basePx + 8),
+    h3: scaledRemFromPx(basePx + 4),
     body: baseSize,
-    caption: "12px",
+    caption: scaledRemFromPx(Math.max(12, Math.round(basePx * 0.75))),
   };
 
   const gapX = clamp(profile.element_spacing_x, 0, 40);

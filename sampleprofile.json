@@ -24,7 +24,8 @@
       "reduced_motion": true,
       "target_size": 32,
       "tooltip_assist": true,
-      "layout_simplification": true
+      "layout_simplification": true,
+      "color_blindness": 1
     },
     "profile_changes": {
       "changed": [

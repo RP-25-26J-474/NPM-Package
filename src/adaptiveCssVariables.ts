@@ -1,7 +1,15 @@
 import type { AuraCssVariables, AuraTokens } from "./types";
 
+export const AURA_MIN_TEXT_SCALE = 1;
+export const AURA_MAX_TEXT_SCALE = 2;
+
 function px(value: number): string {
   return value.toString() + "px";
+}
+
+function clampTextScale(scale: number): number {
+  if (!Number.isFinite(scale)) return AURA_MIN_TEXT_SCALE;
+  return Math.min(AURA_MAX_TEXT_SCALE, Math.max(AURA_MIN_TEXT_SCALE, scale));
 }
 
 export function createAdaptiveCssVariables(tokens: AuraTokens): AuraCssVariables {
@@ -92,4 +100,39 @@ export function applyAdaptiveCssVariables(
     tokens.flags.layoutSimplification
   );
   root.classList.toggle("aura-tooltip-assist", tokens.flags.tooltipAssist);
+}
+
+export function setAuraTextScale(scale: number, target?: HTMLElement): number {
+  if (typeof document === "undefined") return clampTextScale(scale);
+
+  const root = target ?? document.documentElement;
+  const nextScale = clampTextScale(scale);
+  root.style.setProperty("--aura-text-scale", String(nextScale));
+  return nextScale;
+}
+
+export function increaseAuraTextScale(
+  step = 0.1,
+  target?: HTMLElement
+): number {
+  if (typeof document === "undefined") return AURA_MIN_TEXT_SCALE;
+
+  const root = target ?? document.documentElement;
+  const current = Number.parseFloat(
+    root.style.getPropertyValue("--aura-text-scale") || "1"
+  );
+  return setAuraTextScale(current + step, root);
+}
+
+export function decreaseAuraTextScale(
+  step = 0.1,
+  target?: HTMLElement
+): number {
+  if (typeof document === "undefined") return AURA_MIN_TEXT_SCALE;
+
+  const root = target ?? document.documentElement;
+  const current = Number.parseFloat(
+    root.style.getPropertyValue("--aura-text-scale") || "1"
+  );
+  return setAuraTextScale(current - step, root);
 }

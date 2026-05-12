@@ -58,6 +58,11 @@ function pickTag(variant: TextVariant, as?: string): string {
   return "p";
 }
 
+function scaledRemFromPx(value: number): string {
+  const rem = Math.round((value / 16) * 10000) / 10000;
+  return "calc(" + rem.toString() + "rem * var(--aura-text-scale, 1))";
+}
+
 export function AdaptiveText(props: AdaptiveTextProps) {
   const { tokens, behaviorTracker, openComponentFeedback } = useAdaptive();
   const { colors, typography, flags, spacing } = tokens;
@@ -88,10 +93,10 @@ export function AdaptiveText(props: AdaptiveTextProps) {
 
   const asTag = pickTag(variant, props.as);
 
-  const base = typography.baseSize; // e.g. "16px"
+  const basePx = typography.basePx;
   const size =
     variant === "display"
-      ? "calc(" + base + " + 18px)"
+      ? scaledRemFromPx(basePx + 18)
       : variant === "h1"
       ? typography.h1
       : variant === "h2"
@@ -99,19 +104,19 @@ export function AdaptiveText(props: AdaptiveTextProps) {
       : variant === "h3"
       ? typography.h3
       : variant === "h4"
-      ? "calc(" + base + " + 2px)"
+      ? scaledRemFromPx(basePx + 2)
       : variant === "h5"
-      ? base
+      ? typography.baseSize
       : variant === "h6"
-      ? "calc(" + base + " - 1px)"
+      ? scaledRemFromPx(Math.max(1, basePx - 1))
       : variant === "lead"
-      ? "calc(" + base + " + 2px)"
+      ? scaledRemFromPx(basePx + 2)
       : variant === "caption"
       ? typography.caption
       : variant === "overline"
-      ? "calc(" + typography.caption + " - 1px)"
+      ? scaledRemFromPx(Math.max(1, Math.max(12, Math.round(basePx * 0.75)) - 1))
       : variant === "code"
-      ? "calc(" + base + " - 1px)"
+      ? scaledRemFromPx(Math.max(1, basePx - 1))
       : typography.body;
 
   const baseTextColor = colors.text;
@@ -130,6 +135,8 @@ export function AdaptiveText(props: AdaptiveTextProps) {
     margin: 0,
     textAlign: align,
     fontWeight: weightToNumber(weight),
+    maxWidth: "100%",
+    overflowWrap: "anywhere",
   };
 
   // Variant tweaks

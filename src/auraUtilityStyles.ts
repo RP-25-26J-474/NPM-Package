@@ -29,6 +29,7 @@ const AURA_UTILITY_CSS = `
   padding: var(--aura-page-padding-y, 20px) var(--aura-page-padding-x, 24px);
   font-size: var(--aura-font-size-body, 16px);
   line-height: var(--aura-line-height, 1.5);
+  overflow-wrap: anywhere;
 }
 
 .a-section {
@@ -62,6 +63,8 @@ const AURA_UTILITY_CSS = `
   color: var(--aura-color-text, #111111);
   font-size: var(--aura-font-size-body, 16px);
   line-height: var(--aura-line-height, 1.5);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .a-heading {
@@ -156,6 +159,7 @@ const AURA_UTILITY_CSS = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: var(--aura-spacing-gap-x, 12px);
   padding: var(--aura-spacing-pad-y, 10px) var(--aura-spacing-pad-x, 12px);
   border-radius: var(--aura-radius-control, 999px);
@@ -163,6 +167,8 @@ const AURA_UTILITY_CSS = `
   cursor: pointer;
   text-decoration: none;
   user-select: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
   transition:
     background-color var(--aura-motion-duration, 160ms) ease,
     border-color var(--aura-motion-duration, 160ms) ease,

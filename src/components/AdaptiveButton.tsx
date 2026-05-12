@@ -187,6 +187,7 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+    flexWrap: "wrap",
     gap: effectiveIconOnly ? 0 : iconGap,
 
     transform:
@@ -280,7 +281,14 @@ export function AdaptiveButton(props: AdaptiveButtonProps) {
 
   const textNode =
     !effectiveIconOnly && showText && textChild != null ? (
-      <span style={{ display: "inline-block", whiteSpace: "nowrap" }}>
+      <span
+        style={{
+          display: "inline-block",
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
+          textAlign: "center",
+        }}
+      >
         {textChild as any}
       </span>
     ) : null;

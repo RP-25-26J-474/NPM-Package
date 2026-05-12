@@ -177,7 +177,7 @@ export interface AuraColorTokens {
 
 export interface AuraTypographyTokens {
   basePx: number; // numeric base size
-  baseSize: string; // "16px"
+  baseSize: string; // rem-based CSS size with --aura-text-scale support
   lineHeight: number;
 
   h1: string;

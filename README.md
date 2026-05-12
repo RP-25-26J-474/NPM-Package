@@ -95,11 +95,30 @@ Example:
 
 When AURA updates `font_size`, `target_size`, `contrast_mode`, `reduced_motion`, or spacing values, the button updates automatically.
 
+## WCAG 1.4.4 Resize Text Support
+
+AURA typography tokens are relative to `rem` and include `--aura-text-scale`, so text responds to browser font settings and can be scaled up to 200% without assistive technology. The package exports small helpers for building text-size controls:
+
+```tsx
+import {
+  decreaseAuraTextScale,
+  increaseAuraTextScale,
+  setAuraTextScale,
+} from "@aura-adaptive/aura-ui-adaptor";
+
+setAuraTextScale(2);          // 200%
+increaseAuraTextScale(0.1);   // +10%
+decreaseAuraTextScale(0.1);   // -10%, clamped at 100%
+```
+
+The utility classes and adaptive button/text primitives allow wrapping by default to reduce clipping at larger text sizes. Avoid using `truncate`, `maxLines`, fixed-height text containers, or non-wrapping custom CSS for content that must remain fully available at 200%.
+
 ## CSS Variables
 
 `AdaptiveProvider` writes variables such as:
 
 ```css
+--aura-text-scale
 --aura-color-background
 --aura-color-surface
 --aura-color-text
